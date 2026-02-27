@@ -3,14 +3,13 @@ import { UserProfile, SurveySubmission, ThemeColor, QuestHistoryItem, HeroClass 
 import { toast } from 'react-toastify';
 import { RootState } from './index';
 import { analytics } from '../services/analytics';
-import { api } from '../services/api';
+import { api, BossBattlePayload } from '../services/api';
 import { audio } from '../services/audio';
+import { handleApiError } from '../utils/errorHandler';
+import { CAMPAIGN_DATA } from '../data/campaignData';
 
 // Import actions from other slices for extraReducers
 import { completeQuestAction } from './questsSlice';
-import { advanceCampaignDay, finishCampaign, completeBossBattleAction } from './campaignSlice';
-import { checkAchievements } from './achievementsSlice';
-import { CAMPAIGN_DATA } from './questsSlice';
 
 const STORAGE_KEY_EMAIL = 'motiva_user_email';
 
@@ -199,15 +198,6 @@ const mapSheetToUser = (rawData: any): UserProfile => {
     } as UserProfile;
 };
 
-// Export for other slices
-export const handleApiError = (e: any) => {
-    if (e.message === 'OFFLINE_SAVED') {
-        toast.warning("Нет сети. Данные сохранятся позже.", { autoClose: 3000 });
-    } else {
-        console.warn("API Error:", e);
-    }
-};
-
 // --- Thunks ---
 
 export const regenerateStats = createAsyncThunk(
@@ -237,6 +227,7 @@ export const regenerateStats = createAsyncThunk(
             try {
                 api.updateProgress(user.email, { 
                     currentHp: newHp, 
+                    dailyCompletionsCount: newDailyCompletions
                 }).catch(console.warn);
             } catch (e) {
                 console.warn("Regen sync failed");
@@ -537,9 +528,20 @@ export const startQuestAction = createAsyncThunk(
     }
 );
 
+// Rate Limiting
+const RATE_LIMIT_MS = 500;
+let lastXpAdd = 0;
+
 export const addExperience = createAsyncThunk(
   'user/addExperience',
   async (payload: { xp: number; coins: number }, { getState, dispatch }) => {
+    const now = Date.now();
+    if (now - lastXpAdd < RATE_LIMIT_MS) {
+        console.warn("Rate limit hit for addExperience");
+        return null;
+    }
+    lastXpAdd = now;
+
     const state = getState() as RootState;
     const user = state.user.currentUser;
     if (!user || !user.email) return null;
@@ -568,6 +570,64 @@ export const addExperience = createAsyncThunk(
   }
 );
 
+let lastAchievementCheck = 0;
+
+export const checkAchievements = createAsyncThunk(
+    'achievements/checkAchievements',
+    async (_, { getState, dispatch }) => {
+        const now = Date.now();
+        if (now - lastAchievementCheck < RATE_LIMIT_MS) {
+            return;
+        }
+        lastAchievementCheck = now;
+
+        const state = getState() as RootState;
+        const user = state.user.currentUser;
+        const allAchievements = state.rewards.achievements;
+        
+        if (!user || !user.email) return;
+
+        const newUnlocked: string[] = [];
+        let totalRewardXp = 0;
+        let totalRewardCoins = 0;
+
+        allAchievements.forEach(ach => {
+            if (user.achievements.includes(ach.id)) return;
+            let unlocked = false;
+            switch (ach.conditionType) {
+                case 'quests': if (user.completedQuests >= ach.threshold) unlocked = true; break;
+                case 'coins': if (user.coins >= ach.threshold) unlocked = true; break;
+                case 'xp':
+                     if (ach.id === 'ach_lvl2' && user.level >= 2) unlocked = true;
+                     if (ach.id === 'ach_lvl5' && user.level >= 5) unlocked = true;
+                     break;
+                case 'streak': if (ach.id === 'ach_streak7' && user.streakDays >= 7) unlocked = true; break;
+            }
+
+            if (unlocked) {
+                newUnlocked.push(ach.id);
+                totalRewardXp += ach.rewardXp;
+                totalRewardCoins += ach.rewardCoins;
+                // Fire and forget
+                api.addAchievement(user.email, ach).catch(e => console.warn("Achievement sync delay"));
+                audio.playQuestComplete(); // Achievement sound
+                toast.info(`🏆 Получено достижение: ${ach.title}!`, { theme: 'dark' });
+            }
+        });
+
+        if (newUnlocked.length > 0) {
+            if (totalRewardXp > 0 || totalRewardCoins > 0) {
+                dispatch(addExperience({ xp: totalRewardXp, coins: totalRewardCoins }));
+            }
+            const updates = { 
+                achievements: [...user.achievements, ...newUnlocked] 
+            };
+            return updates;
+        }
+        return null;
+    }
+);
+
 export const importSaveData = createAsyncThunk('user/import', async (json: string) => {
     const data = JSON.parse(json);
     if (data.email) {
@@ -577,6 +637,108 @@ export const importSaveData = createAsyncThunk('user/import', async (json: strin
     }
     throw new Error("Invalid save file: missing email");
 });
+
+// --- CAMPAIGN THUNKS (Moved from campaignSlice to break circular dependency) ---
+
+export const updateCampaignAction = createAsyncThunk(
+    'campaign/updateCampaignAction',
+    async (payload: { campaignId: string, currentDay: number, completedDays: number[] }, { getState }) => {
+        const state = getState() as RootState;
+        const user = state.user.currentUser;
+        if (!user || !user.email) return;
+        try {
+            await api.updateCampaign(user.email, payload.campaignId, payload.currentDay, payload.completedDays);
+        } catch (e) { handleApiError(e); }
+    }
+);
+
+export const advanceCampaignDay = createAsyncThunk(
+    'campaign/advanceCampaign',
+    async (_, { getState, dispatch }) => {
+        const state = getState() as RootState;
+        const user = state.user.currentUser;
+        if (!user || !user.email || !user.campaign.isDayComplete) return;
+
+        // Prevent advancing past the final day (loop exploit fix)
+        if (user.campaign.currentDay >= 14) {
+            return;
+        }
+
+        const nextDay = user.campaign.currentDay + 1;
+        const newAllies = [...user.campaign.unlockedAllies];
+        
+        let allyUnlocked = null;
+        if (nextDay === 3) allyUnlocked = 'fairy';
+        if (nextDay === 7) allyUnlocked = 'warrior';
+        
+        if (allyUnlocked && !newAllies.includes(allyUnlocked)) {
+            newAllies.push(allyUnlocked);
+            api.unlockAlly(user.email, allyUnlocked).catch(console.warn);
+        }
+
+        await dispatch(addExperience({ xp: 100, coins: 50 }));
+
+        const updates = {
+            campaign: {
+                currentDay: nextDay > 14 ? 14 : nextDay, 
+                isDayComplete: false,
+                unlockedAllies: newAllies
+            },
+            lastCampaignAdvanceDate: new Date().toISOString() // LOCK the day
+        };
+
+        await dispatch(updateUserProfile(updates));
+        // Sync Campaign
+        await dispatch(updateCampaignAction({ 
+            campaignId: 'main', 
+            currentDay: nextDay > 14 ? 14 : nextDay, 
+            completedDays: [] 
+        }));
+
+        toast.info("День завершен! Сюжет продолжается...", { icon: () => "📜" });
+        return updates;
+    }
+);
+
+export const finishCampaign = createAsyncThunk(
+    'campaign/finishCampaign',
+    async (_, { getState, dispatch }) => {
+        const state = getState() as RootState;
+        const user = state.user.currentUser;
+        if (!user || !user.email) return;
+
+        await dispatch(addExperience({ xp: 5000, coins: 2000 }));
+        
+        try {
+            await api.addAchievement(user.email, { id: 'legend_of_productivity', title: 'Legend of Productivity' });
+        } catch (e) { handleApiError(e); }
+        
+        const updates = {
+            achievements: [...user.achievements, 'legend_of_productivity'],
+            campaign: { ...user.campaign, isDayComplete: true }
+        };
+        
+        return updates;
+    }
+);
+
+export const completeBossBattleAction = createAsyncThunk(
+    'campaign/completeBossBattle',
+    async (payload: BossBattlePayload, { getState, dispatch }) => {
+        const state = getState() as RootState;
+        const user = state.user.currentUser;
+        if (!user || !user.email) return;
+
+        // Optimistic
+        if (payload.won) {
+            await dispatch(addExperience({ xp: payload.xpEarned, coins: payload.coinsEarned }));
+        }
+
+        try {
+            await api.completeBossBattle(payload);
+        } catch (e) { handleApiError(e); }
+    }
+);
 
 const userSlice = createSlice({
   name: 'user',

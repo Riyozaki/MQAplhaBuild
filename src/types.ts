@@ -57,7 +57,7 @@ export type QuestCategory =
 export type HeroClass = 'warrior' | 'mage' | 'ranger' | 'healer';
 
 export interface Quest {
-  id: number;
+  id: number | string;
   title: string;
   description: string;
   category: QuestCategory | string;
@@ -81,6 +81,8 @@ export interface ShopItem {
   type: 'skin' | 'consumable';
   value: string;
   icon: string;
+  category?: 'skin' | 'real' | 'boost';
+  rarity?: 'Common' | 'Rare' | 'Epic' | 'Legendary';
 }
 
 export interface Achievement {
@@ -95,7 +97,7 @@ export interface Achievement {
 }
 
 export interface QuestHistoryItem {
-  questId: number;
+  questId: number | string;
   questTitle: string; 
   xpEarned: number;
   coinsEarned?: number;
@@ -120,7 +122,7 @@ export interface StoryDay {
   description: string;
   character: 'wizard' | 'fairy' | 'warrior' | 'king';
   dialogue: string;
-  questIds: number[];
+  questIds: (number | string)[];
   rewardText: string;
 }
 
@@ -151,8 +153,8 @@ export interface UserProfile {
   currentLocation?: string; // v2.0
 
   // Mechanics
-  activeQuestTimers: Record<number, number>;
-  habitStreaks?: Record<number, number>; 
+  activeQuestTimers: Record<string, number>;
+  habitStreaks?: Record<string, number>; 
   dailyCompletionsCount: number;
   lastCompletionTime?: number;
   suspiciousFlags: number;
@@ -198,16 +200,4 @@ export interface AdminAnalyticsData {
   appTimeMinutes: number;
   completedQuests: number;
   avgMotivation: number;
-}
-
-export interface ShopItem {
-  id: string;
-  name: string;
-  description: string;
-  cost: number;
-  type: 'skin' | 'consumable';
-  value: string;
-  icon: string;
-  category?: 'skin' | 'real' | 'boost';          // НОВОЕ
-  rarity?: 'Common' | 'Rare' | 'Epic' | 'Legendary';  // НОВОЕ
 }

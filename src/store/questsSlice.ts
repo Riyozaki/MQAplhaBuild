@@ -5,6 +5,14 @@ import { api, CompleteQuestPayload } from '../services/api';
 import { toast } from 'react-toastify';
 import { handleApiError } from '../utils/errorHandler';
 import { audio } from '../services/audio';
+import { getTasksForQuest } from '../data';
+import { CAMPAIGN_DATA } from '../data/campaignData';
+
+// Import grade quests
+import { grade5Quests } from '../data/grade5Quests';
+import { grade67Quests } from '../data/grade67Quests';
+import { grade89Quests } from '../data/grade89Quests';
+import { grade1011Quests } from '../data/grade1011Quests';
 
 interface QuestsState {
   list: Quest[];
@@ -23,22 +31,7 @@ const getMinMinutes = (rarity: QuestRarity): number => {
 };
 
 // --- CAMPAIGN DATA ---
-export const CAMPAIGN_DATA: StoryDay[] = [
-    { day: 1, title: "Пробуждение", locationId: 'village', locationName: "Деревня", description: "Начало пути. Приведи дела в порядок.", character: 'wizard', dialogue: "Здравствуй! Приведи в порядок свой штаб и тело.", questIds: [65, 55, 1], rewardText: "Начало Пути" },
-    { day: 2, title: "Дисциплина", locationId: 'village', locationName: "Деревня", description: "Укрепление духа и режима.", character: 'wizard', dialogue: "Продолжай тренировки. Благодарность — сила героя.", questIds: [66, 75, 56], rewardText: "Бонус Стрика" },
-    { day: 3, title: "Лесная Арифметика", locationId: 'forest', locationName: "Лес", description: "Основы вычислений.", character: 'fairy', dialogue: "Цифры запутали тропы! Помоги распутать их.", questIds: [2, 3, 57], rewardText: "Разблокирован Дух" },
-    { day: 4, title: "Тропа Грамотности", locationId: 'forest', locationName: "Лес", description: "Работа с текстом.", character: 'fairy', dialogue: "Нужно больше усилий. Читай и записывай.", questIds: [11, 21, 67], rewardText: "Скин Леса" },
-    { day: 5, title: "Научный Подход", locationId: 'forest', locationName: "Лес", description: "Изучение природы.", character: 'wizard', dialogue: "Мир полон загадок. Исследуй их!", questIds: [37, 81, 4], rewardText: "1-й Кристалл" },
-    { day: 6, title: "Восхождение", locationId: 'mountains', locationName: "Горы", description: "Физика и выносливость.", character: 'wizard', dialogue: "В горах тяжело дышать. Законы Ньютона здесь суровы.", questIds: [38, 58, 5], rewardText: "Зелье Силы" },
-    { day: 7, title: "Спасение Воина", locationId: 'mountains', locationName: "Горы", description: "Английский и логика.", character: 'warrior', dialogue: "Язык — это ключ к союзникам. Освободи меня!", questIds: [29, 93, 6], rewardText: "Разблокирован Воин" },
-    { day: 8, title: "Лавина Задач", locationId: 'mountains', locationName: "Горы", description: "Многозадачность.", character: 'warrior', dialogue: "Держи ритм! Спорт и учеба — наш щит.", questIds: [59, 12, 68], rewardText: "2-й Кристалл" },
-    { day: 9, title: "Руины Истории", locationId: 'castle', locationName: "Замок", description: "Исторические даты.", character: 'wizard', dialogue: "История учит нас не повторять ошибок.", questIds: [47, 48, 69], rewardText: "Щит Мудрости" },
-    { day: 10, title: "Зал Литературы", locationId: 'castle', locationName: "Замок", description: "Чтение и анализ.", character: 'fairy', dialogue: "Слова имеют силу. Говори красиво и уверенно.", questIds: [22, 23, 76], rewardText: "Свиток Речи" },
-    { day: 11, title: "Финансовая Грамота", locationId: 'castle', locationName: "Замок", description: "Учет ресурсов.", character: 'warrior', dialogue: "Золото требует счета. Подготовь казну.", questIds: [87, 88, 70], rewardText: "3-й Кристалл" },
-    { day: 12, title: "Живой Песок", locationId: 'desert', locationName: "Пустыня", description: "Биология жизни.", character: 'fairy', dialogue: "В каждой клетке — жизнь. Изучи её.", questIds: [39, 82, 60], rewardText: "Зелье Жизни" },
-    { day: 13, title: "Буря Кода", locationId: 'desert', locationName: "Пустыня", description: "Логика и IT.", character: 'warrior', dialogue: "Тень сопротивляется! Используй алгоритмы!", questIds: [94, 95, 7], rewardText: "4-й Кристалл" },
-    { day: 14, title: "Трон Лени", locationId: 'throne', locationName: "Трон", description: "Финальный экзамен.", character: 'king', dialogue: "Я — твоя Лень. Сможешь ли ты победить себя?", questIds: [74, 100, 71], rewardText: "5-й Кристалл" }
-];
+// Moved to src/data/campaignData.ts
 
 // Fisher-Yates shuffle
 const shuffle = (array: any[]) => {
@@ -274,17 +267,17 @@ const rawQuests: any[] = [
 ];
 
 // Map raw to full Quest object
-const questsDatabase: Quest[] = rawQuests.map(q => {
+const mapRawQuest = (q: any): Quest => {
     // Only specific IDs are treated as recurring Habits
     // 55: Зарядка, 65: Уборка, 69: Режим сна
     const HABIT_IDS = [55, 65, 69];
-    const isHabit = HABIT_IDS.includes(q.id);
+    const isHabit = HABIT_IDS.includes(Number(q.id));
     
     // Auto-assign difficulty based on rarity
     let difficulty = q.difficulty;
     if (!difficulty) {
-        if (q.rarity === 'Common') difficulty = 'Easy';
-        else if (q.rarity === 'Rare') difficulty = 'Medium';
+        if (q.rarity === 'Common' || q.rarity === 'common') difficulty = 'Easy';
+        else if (q.rarity === 'Rare' || q.rarity === 'rare') difficulty = 'Medium';
         else difficulty = 'Hard';
     }
 
@@ -294,16 +287,54 @@ const questsDatabase: Quest[] = rawQuests.map(q => {
         gradeRange = q.grades;
     }
 
+    // Capitalize rarity
+    let rarity = q.rarity;
+    if (rarity) {
+        rarity = rarity.charAt(0).toUpperCase() + rarity.slice(1);
+    }
+
+    // Map rewards
+    const xp = q.xp || q.xpReward || 10;
+    const coins = q.coins || q.coinReward || 5;
+
+    // Ensure tasks exist
+    let tasks = q.tasks;
+    if (!tasks) {
+        tasks = getTasksForQuest(q.id);
+    }
+    
+    if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+        tasks = [{
+            id: 1,
+            type: 'yes_no',
+            question: q.description || "Задание выполнено?",
+            correctAnswer: "yes",
+            xpBonus: 0
+        }];
+    }
+
     return {
         ...q,
         type: q.type || 'daily',
         isHabit, 
         completed: false,
-        minMinutes: getMinMinutes(q.rarity),
+        minMinutes: getMinMinutes(rarity as QuestRarity),
         difficulty,
-        gradeRange
+        gradeRange,
+        rarity: rarity as QuestRarity,
+        xp,
+        coins,
+        tasks
     };
-});
+};
+
+const questsDatabase: Quest[] = [
+    ...rawQuests.map(mapRawQuest),
+    ...grade5Quests.map(mapRawQuest),
+    ...grade67Quests.map(mapRawQuest),
+    ...grade89Quests.map(mapRawQuest),
+    ...grade1011Quests.map(mapRawQuest)
+];
 
 export const fetchQuests = createAsyncThunk('quests/fetchQuests', async (_, { getState }) => {
   const state = getState() as RootState;
@@ -393,7 +424,7 @@ export const completeQuestAction = createAsyncThunk(
         if (hpLost > 0) toast.error(`Потеряно ${hpLost} HP из-за низкого качества!`);
 
         const historyItem: QuestHistoryItem = { 
-            questId: Number(quest.id), 
+            questId: quest.id, 
             questTitle: quest.title, 
             xpEarned: xpReward,
             coinsEarned: coinsReward, // Add this
@@ -406,7 +437,7 @@ export const completeQuestAction = createAsyncThunk(
         try {
             const apiPayload: CompleteQuestPayload = {
                 email: user.email,
-                questId: Number(quest.id),
+                questId: quest.id,
                 questName: quest.title,
                 category: quest.category,
                 rarity: quest.rarity,
@@ -438,7 +469,7 @@ export const completeQuestAction = createAsyncThunk(
     }
 );
 
-export const markQuestCompleted = createAsyncThunk('quests/markCompleted', async (questId: number) => {
+export const markQuestCompleted = createAsyncThunk('quests/markCompleted', async (questId: number | string) => {
   return questId;
 });
 

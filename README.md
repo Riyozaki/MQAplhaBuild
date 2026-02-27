@@ -13,9 +13,9 @@
 
 ## 🛠 Технологии
 
-- **Frontend**: React, TypeScript, Redux Toolkit.
-- **UI**: Material UI, Tailwind CSS, Lucide Icons.
-- **Backend**: Firebase (Auth, Firestore).
+- **Frontend**: React, TypeScript, Redux Toolkit, Vite.
+- **UI**: Tailwind CSS, Framer Motion, Lucide Icons.
+- **Backend**: Google Apps Script & Google Sheets (API v3).
 - **Charts**: Chart.js.
 
 ## 📦 Установка и Запуск
@@ -31,30 +31,20 @@
     npm install
     ```
 
-3.  **Настройка Firebase**
-    *   Создайте проект на [Firebase Console](https://console.firebase.google.com/).
-    *   Включите **Authentication** (Email/Password).
-    *   Включите **Firestore Database**.
-    *   Создайте файл `.env` в корне проекта и добавьте данные вашего приложения:
-    ```env
-    REACT_APP_FIREBASE_API_KEY=your_api_key
-    REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-    REACT_APP_FIREBASE_PROJECT_ID=your_project_id
-    REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-    REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-    REACT_APP_FIREBASE_APP_ID=your_app_id
-    ```
+3.  **Настройка окружения**
+    *   Создайте файл `.env` на основе `.env.example`.
+    *   Укажите `VITE_API_URL` (URL вашего Google Apps Script деплоя).
 
 4.  **Запуск**
     ```bash
-    npm start
+    npm run dev
     ```
     Приложение будет доступно по адресу `http://localhost:3000`.
 
 ## 👨‍🏫 Вход для Администратора
 
 Чтобы протестировать админ-панель:
-1. Зарегистрируйте пользователя с email, содержащим слово `admin` (например, `admin@school.com`), или измените роль пользователя вручную в базе данных Firebase (коллекция `users`, поле `role: 'admin'`).
+1. Зарегистрируйте пользователя с email, содержащим слово `admin` (например, `admin@school.com`), или измените роль пользователя вручную в Google Sheets.
 2. Перейдите по ссылке `/admin` в меню навигации.
 
 ## 📄 Структура Проекта
@@ -64,3 +54,4 @@
 *   `/store` - Redux слайсы для управления состоянием.
 *   `/context` - React Context (Auth, Theme).
 *   `/types` - TypeScript интерфейсы.
+*   `/services` - API и аналитика.

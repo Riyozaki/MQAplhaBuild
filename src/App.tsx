@@ -1,16 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, Suspense } from 'react';
 import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Provider, useSelector, useDispatch } from 'react-redux';
 import { store, RootState, AppDispatch } from './store';
 import Navbar from './components/Navbar';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Profile from './pages/Profile';
-import Quests from './pages/Quests';
-import Rewards from './pages/Rewards';
-import Leaderboard from './pages/Leaderboard';
-import Calendar from './pages/Calendar'; // New Import
-import Admin from './pages/Admin';
 import AdminControls from './components/AdminControls';
 import DailyRewardModal from './components/DailyRewardModal';
 import FloatingReward from './components/FloatingReward';
@@ -20,7 +12,6 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ToastContainer, toast } from 'react-toastify';
 import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
 import ErrorBoundary from './components/ErrorBoundary';
-import 'chart.js/auto'; 
 import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeColor } from './types';
 import { regenerateStats, updateUserProfile, setGradeGroup } from './store/userSlice';
@@ -28,6 +19,24 @@ import GradeSelection from './components/GradeSelection';
 import { GradeGroup } from './data/questTypes';
 import { api } from './services/api';
 import Modal from 'react-modal';
+import { Loader2 } from 'lucide-react';
+
+// Lazy Load Pages
+const Home = React.lazy(() => import('./pages/Home'));
+const Login = React.lazy(() => import('./pages/Login'));
+const Profile = React.lazy(() => import('./pages/Profile'));
+const Quests = React.lazy(() => import('./pages/Quests'));
+const Rewards = React.lazy(() => import('./pages/Rewards'));
+const Leaderboard = React.lazy(() => import('./pages/Leaderboard'));
+const Calendar = React.lazy(() => import('./pages/Calendar'));
+const Admin = React.lazy(() => import('./pages/Admin'));
+
+// Loading Fallback
+const PageLoader = () => (
+  <div className="flex h-96 items-center justify-center text-primary-400">
+    <Loader2 className="animate-spin mr-2" /> Загрузка магии...
+  </div>
+);
 
 // Theme Colors Config
 const THEME_COLORS: Record<ThemeColor, Record<number, string>> = {
@@ -92,16 +101,18 @@ const AnimatedRoutes: React.FC = () => {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
             >
-                <Routes location={location}>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                    <Route path="/quests" element={<ProtectedRoute><Quests /></ProtectedRoute>} />
-                    <Route path="/rewards" element={<ProtectedRoute><Rewards /></ProtectedRoute>} />
-                    <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-                    <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
-                    <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-                </Routes>
+                <Suspense fallback={<PageLoader />}>
+                    <Routes location={location}>
+                        <Route path="/" element={<ErrorBoundary><Home /></ErrorBoundary>} />
+                        <Route path="/login" element={<ErrorBoundary><Login /></ErrorBoundary>} />
+                        <Route path="/profile" element={<ProtectedRoute><ErrorBoundary><Profile /></ErrorBoundary></ProtectedRoute>} />
+                        <Route path="/quests" element={<ProtectedRoute><ErrorBoundary><Quests /></ErrorBoundary></ProtectedRoute>} />
+                        <Route path="/rewards" element={<ProtectedRoute><ErrorBoundary><Rewards /></ErrorBoundary></ProtectedRoute>} />
+                        <Route path="/calendar" element={<ProtectedRoute><ErrorBoundary><Calendar /></ErrorBoundary></ProtectedRoute>} />
+                        <Route path="/leaderboard" element={<ProtectedRoute><ErrorBoundary><Leaderboard /></ErrorBoundary></ProtectedRoute>} />
+                        <Route path="/admin" element={<AdminRoute><ErrorBoundary><Admin /></ErrorBoundary></AdminRoute>} />
+                    </Routes>
+                </Suspense>
             </motion.div>
         </AnimatePresence>
     );

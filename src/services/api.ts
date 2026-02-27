@@ -6,7 +6,7 @@ import { setPendingSyncCount } from '../store/userSlice';
 // ВАЖНО: После деплоя нового скрипта v3 — вставь сюда новый URL
 // Deploy → New deployment → скопировать URL
 // ═══════════════════════════════════════════════════════════
-export const API_URL = 'https://script.google.com/macros/s/AKfycbyibXkrpjTcaGb23jx_WosICwTx3jL8RYGYayNh3ypi6Vaz2nRUaKVTuhb1oEAFELgTJw/exec';
+export const API_URL = import.meta.env.VITE_API_URL || 'https://script.google.com/macros/s/AKfycbyibXkrpjTcaGb23jx_WosICwTx3jL8RYGYayNh3ypi6Vaz2nRUaKVTuhb1oEAFELgTJw/exec';
 
 const TIMEOUT_MS = 25000;
 const OFFLINE_QUEUE_KEY = 'motiva_offline_queue';
@@ -49,7 +49,7 @@ interface OfflineRequest {
 
 export interface CompleteQuestPayload {
     email: string;
-    questId: number;
+    questId: number | string;
     questName: string;
     category: string;
     rarity: string;
@@ -59,7 +59,7 @@ export interface CompleteQuestPayload {
     coinsEarned: number;
     hpLost: number;
     questHistoryEntry: {
-        questId: number;
+        questId: number | string;
         questTitle: string;
         date: string;
         score?: number;
@@ -71,7 +71,7 @@ export interface CompleteQuestPayload {
     newXp: number;
     newNextLevelXp: number;
     newCoins: number;
-    habitStreaks?: Record<number, number>; // v3: передаём стрики привычек
+    habitStreaks?: Record<string, number>; // v3: передаём стрики привычек
 }
 
 export interface BossBattlePayload {

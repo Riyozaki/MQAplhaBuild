@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
-import { advanceCampaignDay } from '../store/campaignSlice';
+import { advanceCampaignDay } from '../store/userSlice';
 import { fetchQuests } from '../store/questsSlice';
-import { CAMPAIGN_DATA } from '../store/questsSlice';
+import { CAMPAIGN_DATA } from '../data/campaignData';
 import QuestModal from '../components/QuestModal';
 import BossBattleModal from '../components/BossBattleModal';
 import { Quest } from '../types';
@@ -76,7 +76,8 @@ const StoryDashboard: React.FC = () => {
 
   const currentDayNum = user.campaign?.currentDay || 1;
   const currentStory = CAMPAIGN_DATA.find(d => d.day === currentDayNum) || CAMPAIGN_DATA[0];
-  const storyQuests = quests.filter(q => currentStory.questIds.includes(Number(q.id)));
+  const storyQuestIds = currentStory.questIds.map(String);
+  const storyQuests = quests.filter(q => storyQuestIds.includes(String(q.id)));
   const completedCount = storyQuests.filter(q => q.completed).length;
   const totalCount = storyQuests.length;
 

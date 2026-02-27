@@ -15,6 +15,7 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
   ChartOptions,
   ChartData
 } from 'chart.js';
@@ -31,7 +32,8 @@ ChartJS.register(
   BarElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 // Standard Class Skins and Premium Skins are now imported from src/data/avatars.ts

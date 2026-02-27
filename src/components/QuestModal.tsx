@@ -3,9 +3,8 @@ import Modal from 'react-modal';
 import { Quest, Task } from '../types';
 import { X, Coins, Star, Trophy, Volume2, StopCircle, Play, Clock, Zap, Loader2, Lightbulb } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { startQuestAction, selectIsPending } from '../store/userSlice';
+import { startQuestAction, selectIsPending, checkAchievements } from '../store/userSlice';
 import { completeQuestAction, markQuestCompleted, fetchQuests } from '../store/questsSlice';
-import { checkAchievements } from '../store/achievementsSlice';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RootState, AppDispatch } from '../store';
@@ -51,14 +50,7 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
   const [hintsUsed, setHintsUsed] = useState(0);
   const [hintedTasks, setHintedTasks] = useState<Set<number>>(new Set());
   
-  const startTime = quest && user?.activeQuestTimers ? user.activeQuestTimers[quest.id] : null;
-  const isStarted = true; // Always started now that waiting is removed
   const isAdmin = user?.role === 'admin';
-
-  // Calculate time-based lock
-  const minMs = quest ? quest.minMinutes * 60 * 1000 : 0;
-  const elapsed = startTime ? Date.now() - new Date(startTime).getTime() : 0;
-  const timeLeft = 0; // Disabled waiting system
 
   // Hint reward penalty multiplier: 1 hint = 0.75, 2 = 0.50, 3 = 0.25, 4 = 0.00
   const hintPenaltyMultiplier = Math.max(0, 1 - (hintsUsed * HINT_PENALTY));
@@ -186,10 +178,6 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
 
   const handleCompleteFlow = async () => {
       if (!quest || isCompleting) return;
-      if (timeLeft > 0 && !isAdmin) {
-          toast.warning(`Не так быстро! Подожди ещё ${formatTime(timeLeft)}.`);
-          return;
-      }
 
       const allTasks = quest.tasks;
       const completedCount = Object.keys(taskResults).length;
@@ -385,7 +373,7 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
                          </div>
                      )}
                      <div className="space-y-6 pointer-events-auto">
-                        {displayQuest.tasks.map(task => renderTask(task))}
+                        {displayQuest.tasks?.map(task => renderTask(task))}
                      </div>
               </motion.div>
             )}

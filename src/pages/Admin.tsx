@@ -3,8 +3,33 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { Bar, Scatter } from 'react-chartjs-2';
 import { ShieldAlert, Users, TrendingUp, BookOpen, Clock, EyeOff, Scroll } from 'lucide-react';
-import { ChartData, ChartOptions } from 'chart.js';
+import { 
+  Chart as ChartJS, 
+  CategoryScale, 
+  LinearScale, 
+  BarElement, 
+  PointElement, 
+  LineElement, 
+  Title, 
+  Tooltip, 
+  Legend, 
+  Filler,
+  ChartData, 
+  ChartOptions 
+} from 'chart.js';
 import { motion } from 'framer-motion';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
 const Admin: React.FC = () => {
   const studentData = useSelector((state: RootState) => state.admin.studentData);

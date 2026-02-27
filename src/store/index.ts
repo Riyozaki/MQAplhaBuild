@@ -4,8 +4,6 @@ import questsReducer from './questsSlice';
 import rewardsReducer from './rewardsSlice';
 import socialReducer from './socialSlice';
 import adminReducer from './adminSlice';
-import campaignReducer from './campaignSlice';
-import achievementsReducer from './achievementsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -14,8 +12,6 @@ export const store = configureStore({
     rewards: rewardsReducer,
     social: socialReducer,
     admin: adminReducer,
-    campaign: campaignReducer,
-    achievements: achievementsReducer,
   },
 });
 

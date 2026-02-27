@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
-import { purchaseItemAction, selectIsPending } from '../store/userSlice';
-import { checkAchievements } from '../store/achievementsSlice';
+import { purchaseItemAction, selectIsPending, checkAchievements } from '../store/userSlice';
 import { 
   Coins, ShoppingBag, Lock, Check, Zap, Target, Sparkles, Shield, Coffee, 
   Gamepad2, Pizza, X, Loader2, Flame, Compass, Cpu, Film, Moon, Heart,
