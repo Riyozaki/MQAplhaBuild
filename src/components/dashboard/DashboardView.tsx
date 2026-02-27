@@ -45,10 +45,8 @@ const getDailyRandomQuests = (allQuests: Quest[]): Quest[] => {
     const pool = allQuests.filter(q => !q.isHabit && q.type !== 'story' && !q.completed);
     
     const shuffled = [...pool].sort((a, b) => {
-        const numA = typeof a.id === 'number' ? a.id : Number(String(a.id).replace(/\D/g, '')) || 0;
-        const numB = typeof b.id === 'number' ? b.id : Number(String(b.id).replace(/\D/g, '')) || 0;
-        const rA = seededRandom(cycleIndex + numA);
-        const rB = seededRandom(cycleIndex + numB);
+        const rA = seededRandom(cycleIndex + Number(a.id));
+        const rB = seededRandom(cycleIndex + Number(b.id));
         return rA - rB;
     });
 
@@ -105,7 +103,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
     };
 
     const handleHabitComplete = (q: Quest) => {
-        if (isQuestCompletedToday(q.id) || isPendingQuest) return;
+        if (isQuestCompletedToday(Number(q.id)) || isPendingQuest) return;
         
         dispatch(completeQuestAction({ quest: q, multiplier: 1 })).unwrap().then(() => {
             playCoins(); 
@@ -156,7 +154,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
                                     <span>{user.currentXp} / {user.nextLevelXp}</span>
                                 </div>
                                 <div className="h-3 bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-amber-400" style={{ width: `${Math.min(100, (user.currentXp / user.nextLevelXp) * 100)}%` }}></div>
+                                    <div className="h-full bg-amber-400" style={{ width: `${Math.min(100, (Number(user.currentXp) / Number(user.nextLevelXp)) * 100)}%` }}></div>
                                 </div>
                             </div>
                         </div>
@@ -196,7 +194,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
                                 key={q.id} 
                                 q={q} 
                                 streak={user.habitStreaks?.[q.id] || 0}
-                                isDone={isQuestCompletedToday(q.id)}
+                                isDone={isQuestCompletedToday(Number(q.id))}
                                 isPendingQuest={isPendingQuest}
                                 isExhausted={isExhausted}
                                 onComplete={handleHabitComplete}
@@ -218,7 +216,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
                             <DailyChallengeCard 
                                 key={q.id} 
                                 q={q}
-                                isDone={isQuestCompletedToday(q.id)}
+                                isDone={isQuestCompletedToday(Number(q.id))}
                                 isExhausted={isExhausted}
                                 isPendingQuest={isPendingQuest}
                                 onSelect={onQuestSelect}

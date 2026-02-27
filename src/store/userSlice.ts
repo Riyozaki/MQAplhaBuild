@@ -111,7 +111,7 @@ const mapSheetToUser = (rawData: any): UserProfile => {
 
     const mappedHistory: QuestHistoryItem[] = Array.isArray(quests) ? quests.map((q: any) => {
         const rawId = q.questId || q.visitorId;
-        const parsedId = isNaN(Number(rawId)) ? rawId : Number(rawId);
+        const parsedId = isNaN(Number(rawId)) ? 0 : Number(rawId);
         return {
             questId: parsedId,
             questTitle: q.questName || q.visitorName || 'Unknown',
@@ -251,28 +251,9 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
     const email = localStorage.getItem(STORAGE_KEY_EMAIL);
     if (!email) return null;
 
-    const localLastLoginKey = `motiva_last_login_${email.toLowerCase().trim()}`;
-    const localLastLogin = localStorage.getItem(localLastLoginKey);
-    
-    // Use local timezone date (YYYY-MM-DD)
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    
-    // Check if we should give reward BEFORE async calls to prevent race conditions
-    let shouldGiveReward = false;
-    if (localLastLogin !== todayStr) {
-        shouldGiveReward = true;
-        // Optimistically set it to prevent parallel calls from triggering it
-        localStorage.setItem(localLastLoginKey, todayStr);
-    }
-
     try {
         const response = await api.getAllUserData(email);
         if (!response.success) {
-            if (shouldGiveReward) {
-                if (localLastLogin) localStorage.setItem(localLastLoginKey, localLastLogin);
-                else localStorage.removeItem(localLastLoginKey);
-            }
             return null;
         }
 
@@ -286,25 +267,11 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
             if (loginRes.progress && loginRes.progress.currentHp !== undefined) {
                 normalizedUser.currentHp = loginRes.progress.currentHp;
             }
-            normalizedUser.lastLoginDate = todayStr;
 
-            if (shouldGiveReward) {
-                if (localLastLogin) {
-                    const lastDate = new Date(localLastLogin);
-                    const today = new Date(todayStr);
-                    lastDate.setHours(0,0,0,0);
-                    today.setHours(0,0,0,0);
-                    const diffTime = Math.abs(today.getTime() - lastDate.getTime());
-                    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)); 
-                    
-                    if (diffDays === 1) {
-                        normalizedUser.streakDays += 1;
-                    } else if (diffDays > 1) {
-                        normalizedUser.streakDays = 1; // Reset streak
-                    }
-                } else {
-                    normalizedUser.streakDays = Math.max(1, normalizedUser.streakDays);
-                }
+            if (!loginRes.alreadyLoggedIn) {
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                normalizedUser.lastLoginDate = todayStr;
 
                 const bonusMultiplier = 1 + (normalizedUser.streakDays * 0.1);
                 const coinsEarned = Math.floor(50 * bonusMultiplier);
@@ -312,17 +279,10 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
                 
                 reward = { coins: coinsEarned, xp: xpEarned, streak: normalizedUser.streakDays, bonusMultiplier };
                 dispatch(addExperience({ xp: xpEarned, coins: coinsEarned }));
-                
-                // Sync updated streak to backend
-                api.updateProgress(email, { streakDays: normalizedUser.streakDays, lastLoginDate: todayStr }).catch(console.warn);
             }
         }
         return { user: normalizedUser, reward };
     } catch (e) {
-        if (shouldGiveReward) {
-            if (localLastLogin) localStorage.setItem(localLastLoginKey, localLastLogin);
-            else localStorage.removeItem(localLastLoginKey);
-        }
         console.error("Auth Init Failed:", e);
         return null;
     }
@@ -338,7 +298,7 @@ export const loginDemo = createAsyncThunk('user/loginDemo', async (_, { dispatch
         email: demoEmail,
         username: demoUsername,
         uid: 'demo_hero_id',
-        role: 'admin',
+        role: 'student',
         grade: 10,
         heroClass: 'warrior',
         className: 'Warrior',
@@ -353,7 +313,7 @@ export const loginDemo = createAsyncThunk('user/loginDemo', async (_, { dispatch
     try {
         const response = await api.login(demoEmail, demoPass);
         const normalizedUser = mapSheetToUser(response);
-        normalizedUser.role = 'admin';
+        normalizedUser.role = 'student';
         normalizedUser.uid = 'demo_hero_id';
         localStorage.setItem(STORAGE_KEY_EMAIL, normalizedUser.email);
         return { user: normalizedUser, reward: null };
@@ -377,48 +337,20 @@ export const loginLocal = createAsyncThunk(
     
     localStorage.setItem(STORAGE_KEY_EMAIL, normalizedUser.email);
     
-    const localLastLoginKey = `motiva_last_login_${normalizedUser.email.toLowerCase().trim()}`;
-    const localLastLogin = localStorage.getItem(localLastLoginKey);
-    
-    // Use local timezone date (YYYY-MM-DD)
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    let shouldGiveReward = false;
-    if (localLastLogin !== todayStr) {
-        shouldGiveReward = true;
-        localStorage.setItem(localLastLoginKey, todayStr);
-    }
-
     const loginRes = await api.dailyLogin(normalizedUser.email);
     let reward = null;
 
     if (loginRes.success) {
         normalizedUser.streakDays = loginRes.streakDays;
         
-        if (shouldGiveReward) {
-             if (localLastLogin) {
-                 const lastDate = new Date(localLastLogin);
-                 const today = new Date(todayStr);
-                 lastDate.setHours(0,0,0,0);
-                 today.setHours(0,0,0,0);
-                 const diffTime = Math.abs(today.getTime() - lastDate.getTime());
-                 const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)); 
-                 
-                 if (diffDays === 1) {
-                     normalizedUser.streakDays += 1;
-                 } else if (diffDays > 1) {
-                     normalizedUser.streakDays = 1;
-                 }
-             } else {
-                 normalizedUser.streakDays = Math.max(1, normalizedUser.streakDays);
-             }
+        if (!loginRes.alreadyLoggedIn) {
+             const now = new Date();
+             const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+             normalizedUser.lastLoginDate = todayStr;
 
              const bonusMultiplier = 1 + (normalizedUser.streakDays * 0.1);
              reward = { coins: Math.floor(50 * bonusMultiplier), xp: Math.floor(100 * bonusMultiplier), streak: normalizedUser.streakDays, bonusMultiplier };
              dispatch(addExperience({ xp: reward.xp, coins: reward.coins }));
-             
-             api.updateProgress(normalizedUser.email, { streakDays: normalizedUser.streakDays, lastLoginDate: todayStr }).catch(console.warn);
         }
     }
 
@@ -592,7 +524,7 @@ export const submitDailyMood = createAsyncThunk(
 
 export const startQuestAction = createAsyncThunk(
     'user/startQuest',
-    async (questId: string | number, { getState }) => {
+    async (questId: number, { getState }) => {
         const state = getState() as RootState;
         const user = state.user.currentUser;
         if (!user || !user.email) return;
@@ -629,6 +561,9 @@ export const addExperience = createAsyncThunk(
 
     if (didLevelUp) analytics.track('level_up', user, { oldLevel: user.level, newLevel: currentLevel });
     const updates = { currentXp: newXp, level: currentLevel, nextLevelXp, coins: newCoins };
+    
+    api.updateProgress(user.email, updates).catch(console.warn);
+    
     return { ...updates, rewardDelta: payload };
   }
 );

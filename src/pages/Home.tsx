@@ -76,7 +76,7 @@ const StoryDashboard: React.FC = () => {
 
   const currentDayNum = user.campaign?.currentDay || 1;
   const currentStory = CAMPAIGN_DATA.find(d => d.day === currentDayNum) || CAMPAIGN_DATA[0];
-  const storyQuests = quests.filter(q => currentStory.questIds.includes(q.id));
+  const storyQuests = quests.filter(q => currentStory.questIds.includes(Number(q.id)));
   const completedCount = storyQuests.filter(q => q.completed).length;
   const totalCount = storyQuests.length;
 

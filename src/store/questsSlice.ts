@@ -3,7 +3,7 @@ import { Quest, QuestRarity, StoryDay, Task, TaskType, QuestHistoryItem } from '
 import { RootState } from './index';
 import { api, CompleteQuestPayload } from '../services/api';
 import { toast } from 'react-toastify';
-import { handleApiError } from './userSlice'; 
+import { handleApiError } from '../utils/errorHandler';
 import { audio } from '../services/audio';
 
 interface QuestsState {
@@ -393,7 +393,7 @@ export const completeQuestAction = createAsyncThunk(
         if (hpLost > 0) toast.error(`Потеряно ${hpLost} HP из-за низкого качества!`);
 
         const historyItem: QuestHistoryItem = { 
-            questId: quest.id, 
+            questId: Number(quest.id), 
             questTitle: quest.title, 
             xpEarned: xpReward,
             coinsEarned: coinsReward, // Add this
@@ -406,7 +406,7 @@ export const completeQuestAction = createAsyncThunk(
         try {
             const apiPayload: CompleteQuestPayload = {
                 email: user.email,
-                questId: quest.id,
+                questId: Number(quest.id),
                 questName: quest.title,
                 category: quest.category,
                 rarity: quest.rarity,
@@ -438,7 +438,7 @@ export const completeQuestAction = createAsyncThunk(
     }
 );
 
-export const markQuestCompleted = createAsyncThunk('quests/markCompleted', async (questId: string | number) => {
+export const markQuestCompleted = createAsyncThunk('quests/markCompleted', async (questId: number) => {
   return questId;
 });
 

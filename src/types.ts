@@ -57,7 +57,7 @@ export type QuestCategory =
 export type HeroClass = 'warrior' | 'mage' | 'ranger' | 'healer';
 
 export interface Quest {
-  id: string | number;
+  id: number;
   title: string;
   description: string;
   category: QuestCategory | string;
@@ -95,7 +95,7 @@ export interface Achievement {
 }
 
 export interface QuestHistoryItem {
-  questId: string | number;
+  questId: number;
   questTitle: string; 
   xpEarned: number;
   coinsEarned?: number;
@@ -151,8 +151,8 @@ export interface UserProfile {
   currentLocation?: string; // v2.0
 
   // Mechanics
-  activeQuestTimers: Record<string | number, number>;
-  habitStreaks?: Record<string | number, number>; 
+  activeQuestTimers: Record<number, number>;
+  habitStreaks?: Record<number, number>; 
   dailyCompletionsCount: number;
   lastCompletionTime?: number;
   suspiciousFlags: number;

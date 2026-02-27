@@ -53,7 +53,7 @@ const TimerTask: React.FC<Props> = ({ task, onAnswer }) => {
         } else {
             // Check answer
             const val = currentInput.trim();
-            const isCorrect = val === task.correctAnswer || (task.acceptableAnswers && task.acceptableAnswers.includes(val));
+            const isCorrect = val === task.correctAnswer || (task.acceptableAnswers && task.acceptableAnswers.includes(val)) || false;
             setResult(isCorrect ? 'success' : 'fail');
             onAnswer(task.id, isCorrect);
         }

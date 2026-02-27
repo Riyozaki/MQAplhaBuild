@@ -23,33 +23,14 @@ const AdminControls: React.FC = () => {
     
     // Panel States
     const [isOpen, setIsOpen] = useState(false);
-    const [isUnlocked, setIsUnlocked] = useState(false);
-    const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
-    const [passwordInput, setPasswordInput] = useState('');
 
     // Show only for admin role or the specific demo user ID (User Level check)
     if (!user || (user.role !== 'admin' && user.uid !== 'demo_hero_id')) return null;
 
     // --- Actions ---
 
-    const handleUnlock = () => {
-        if (passwordInput === '$WAG') {
-            setIsUnlocked(true);
-            setIsOpen(true);
-            setShowPasswordPrompt(false);
-            toast.success("Master Key Accepted. Protocol Override Engaged.");
-        } else {
-            toast.error("Access Denied. Invalid Protocol Code.");
-            setPasswordInput('');
-        }
-    };
-
     const togglePanel = () => {
-        if (isUnlocked) {
-            setIsOpen(!isOpen);
-        } else {
-            setShowPasswordPrompt(!showPasswordPrompt);
-        }
+        setIsOpen(!isOpen);
     };
 
     const handleAddResources = () => {
@@ -91,36 +72,8 @@ const AdminControls: React.FC = () => {
     return (
         <div className="fixed bottom-4 left-4 z-[9999]">
             <AnimatePresence>
-                {/* Password Prompt */}
-                {showPasswordPrompt && !isUnlocked && (
-                    <motion.div
-                        initial={{ opacity: 0, x: -20, scale: 0.9 }}
-                        animate={{ opacity: 1, x: 0, scale: 1 }}
-                        exit={{ opacity: 0, x: -20, scale: 0.9 }}
-                        className="mb-4 bg-slate-950/95 backdrop-blur-xl border border-red-500/50 p-4 rounded-2xl shadow-2xl w-64 absolute bottom-14 left-0"
-                    >
-                        <div className="text-red-500 font-mono text-xs font-bold mb-2 flex items-center gap-2">
-                            <Lock size={12} /> ENTER PROTOCOL CODE
-                        </div>
-                        <input 
-                            type="password" 
-                            className="w-full bg-slate-900 border border-red-900 text-red-100 px-2 py-1 rounded text-sm mb-2 focus:border-red-500 outline-none"
-                            placeholder="Passcode..."
-                            value={passwordInput}
-                            onChange={(e) => setPasswordInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleUnlock()}
-                        />
-                        <button 
-                            onClick={handleUnlock}
-                            className="w-full bg-red-900/50 hover:bg-red-800 text-red-200 text-xs py-1 rounded font-bold border border-red-800 transition-colors"
-                        >
-                            AUTHENTICATE
-                        </button>
-                    </motion.div>
-                )}
-
                 {/* Control Panel */}
-                {isOpen && isUnlocked && (
+                {isOpen && (
                     <motion.div 
                         initial={{ opacity: 0, y: 20, scale: 0.9 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -174,12 +127,12 @@ const AdminControls: React.FC = () => {
             <button 
                 onClick={togglePanel}
                 className={`p-3 rounded-full shadow-lg border transition-all duration-300 ${
-                    isOpen || showPasswordPrompt
+                    isOpen
                         ? 'bg-amber-600 border-amber-400 text-white' 
                         : 'bg-slate-800 border-slate-600 text-slate-500 hover:text-amber-500'
                 }`}
             >
-                {isUnlocked ? <Unlock size={24} /> : <Settings size={24} />}
+                {isOpen ? <Unlock size={24} /> : <Settings size={24} />}
             </button>
         </div>
     );

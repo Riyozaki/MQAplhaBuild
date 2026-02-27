@@ -1,7 +1,6 @@
 
 import { UserProfile } from '../types';
-
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyibXkrpjTcaGb23jx_WosICwTx3jL8RYGYayNh3ypi6Vaz2nRUaKVTuhb1oEAFELgTJw/exec';
+import { API_URL } from './api';
 
 interface AnalyticsEvent {
   timestamp: string;
@@ -67,7 +66,7 @@ class AnalyticsService {
         events: batch
       });
 
-      await fetch(GOOGLE_SCRIPT_URL, {
+      await fetch(API_URL, {
         method: 'POST',
         mode: 'no-cors', 
         headers: {

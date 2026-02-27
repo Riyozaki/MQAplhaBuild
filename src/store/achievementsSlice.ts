@@ -3,6 +3,7 @@ import { RootState } from './index';
 import { api } from '../services/api';
 import { audio } from '../services/audio';
 import { toast } from 'react-toastify';
+import { addExperience } from './userSlice';
 
 export const checkAchievements = createAsyncThunk(
     'achievements/checkAchievements',
@@ -42,13 +43,12 @@ export const checkAchievements = createAsyncThunk(
         });
 
         if (newUnlocked.length > 0) {
+            if (totalRewardXp > 0 || totalRewardCoins > 0) {
+                dispatch(addExperience({ xp: totalRewardXp, coins: totalRewardCoins }));
+            }
             const updates = { 
-                currentXp: user.currentXp + totalRewardXp, 
-                coins: user.coins + totalRewardCoins, 
                 achievements: [...user.achievements, ...newUnlocked] 
             };
-            // Sync progress for achievement rewards
-            api.updateProgress(user.email, { currentXp: updates.currentXp, coins: updates.coins }).catch(console.warn);
             return updates;
         }
         return null;

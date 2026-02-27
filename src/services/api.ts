@@ -6,7 +6,7 @@ import { setPendingSyncCount } from '../store/userSlice';
 // ВАЖНО: После деплоя нового скрипта v3 — вставь сюда новый URL
 // Deploy → New deployment → скопировать URL
 // ═══════════════════════════════════════════════════════════
-const API_URL = 'https://script.google.com/macros/s/AKfycbyibXkrpjTcaGb23jx_WosICwTx3jL8RYGYayNh3ypi6Vaz2nRUaKVTuhb1oEAFELgTJw/exec';
+export const API_URL = 'https://script.google.com/macros/s/AKfycbyibXkrpjTcaGb23jx_WosICwTx3jL8RYGYayNh3ypi6Vaz2nRUaKVTuhb1oEAFELgTJw/exec';
 
 const TIMEOUT_MS = 25000;
 const OFFLINE_QUEUE_KEY = 'motiva_offline_queue';
@@ -247,6 +247,10 @@ const request = async <T = any>(action: string, data: any = {}, method: 'POST' |
         const options: RequestInit = {
             method,
             headers: {
+                // ВАЖНО: Content-Type 'text/plain;charset=utf-8' используется намеренно как хак для Google Apps Script (GAS), 
+                // чтобы избежать отправки CORS-preflight запросов (OPTIONS), которые GAS обрабатывает некорректно.
+                // При миграции бэкенда с GAS на полноценный сервер (например, Node.js/Express), 
+                // обязательно измените это на 'application/json'.
                 'Content-Type': 'text/plain;charset=utf-8', 
             },
             signal: controller.signal,

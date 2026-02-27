@@ -4,7 +4,7 @@ import { RootState } from './index';
 import { updateUserProfile, addExperience } from './userSlice';
 import { CAMPAIGN_DATA } from './questsSlice';
 import { toast } from 'react-toastify';
-import { handleApiError } from './userSlice';
+import { handleApiError } from '../utils/errorHandler';
 
 export const updateCampaignAction = createAsyncThunk(
     'campaign/updateCampaignAction',
