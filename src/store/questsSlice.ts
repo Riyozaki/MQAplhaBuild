@@ -8,11 +8,11 @@ import { audio } from '../services/audio';
 import { getTasksForQuest } from '../data';
 import { CAMPAIGN_DATA } from '../data/campaignData';
 
-// Import grade quests
-import { grade5Quests } from '../data/grade5Quests';
-import { grade67Quests } from '../data/grade67Quests';
-import { grade89Quests } from '../data/grade89Quests';
-import { grade1011Quests } from '../data/grade1011Quests';
+// Import grade quests dynamically in fetchQuests
+// import { grade5Quests } from '../data/grade5Quests';
+// import { grade67Quests } from '../data/grade67Quests';
+// import { grade89Quests } from '../data/grade89Quests';
+// import { grade1011Quests } from '../data/grade1011Quests';
 
 interface QuestsState {
   list: Quest[];
@@ -44,9 +44,10 @@ const shuffle = (array: any[]) => {
 };
 
 // Helper for task creation
+let taskIdCounter = 10000;
 const t = (type: TaskType, q: string, correct: string, opts?: any): Task => {
     const task: any = {
-        id: Math.random(),
+        id: taskIdCounter++,
         type,
         question: q,
         correctAnswer: correct,
@@ -328,24 +329,42 @@ const mapRawQuest = (q: any): Quest => {
     };
 };
 
-const questsDatabase: Quest[] = [
-    ...rawQuests.map(mapRawQuest),
-    ...grade5Quests.map(mapRawQuest),
-    ...grade67Quests.map(mapRawQuest),
-    ...grade89Quests.map(mapRawQuest),
-    ...grade1011Quests.map(mapRawQuest)
-];
-
 export const fetchQuests = createAsyncThunk('quests/fetchQuests', async (_, { getState }) => {
   const state = getState() as RootState;
   const user = state.user.currentUser;
+  const gradeGroup = state.user.gradeGroup;
   
   if (!user) return [];
 
   const userGrade = user.grade || 7; // Default grade
+  let additionalQuests: any[] = [];
+
+  // Dynamic Import
+  try {
+      if (gradeGroup === 'grade5') {
+          const module = await import('../data/grade5Quests');
+          additionalQuests = module.grade5Quests;
+      } else if (gradeGroup === 'grade67') {
+          const module = await import('../data/grade67Quests');
+          additionalQuests = module.grade67Quests;
+      } else if (gradeGroup === 'grade89') {
+          const module = await import('../data/grade89Quests');
+          additionalQuests = module.grade89Quests;
+      } else if (gradeGroup === 'grade1011') {
+          const module = await import('../data/grade1011Quests');
+          additionalQuests = module.grade1011Quests;
+      }
+  } catch (e) {
+      console.warn("Failed to load grade quests", e);
+  }
+
+  const allQuests = [
+      ...rawQuests.map(mapRawQuest),
+      ...additionalQuests.map(mapRawQuest)
+  ];
 
   // Filter by grade
-  const filteredQuests = questsDatabase.filter(q => {
+  const filteredQuests = allQuests.filter(q => {
       if (!q.gradeRange) return true; // No restriction
       return userGrade >= q.gradeRange[0] && userGrade <= q.gradeRange[1];
   });

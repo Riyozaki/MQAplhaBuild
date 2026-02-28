@@ -4,6 +4,7 @@ import questsReducer from './questsSlice';
 import rewardsReducer from './rewardsSlice';
 import socialReducer from './socialSlice';
 import adminReducer from './adminSlice';
+import { listenerMiddleware } from './listenerMiddleware';
 
 export const store = configureStore({
   reducer: {
@@ -13,6 +14,8 @@ export const store = configureStore({
     social: socialReducer,
     admin: adminReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().prepend(listenerMiddleware.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

@@ -842,7 +842,6 @@ const userSlice = createSlice({
       .addCase(equipSkinAction.fulfilled, (state, action) => {
           state.pendingActions.equipSkin = false;
           if (state.currentUser) state.currentUser.avatar = action.payload;
-          toast.success("Скин успешно экипирован!");
       })
       .addCase(equipSkinAction.rejected, (state) => { state.pendingActions.equipSkin = false; })
       
@@ -900,7 +899,6 @@ const userSlice = createSlice({
 
       .addCase(importSaveData.fulfilled, (state, action) => {
           state.currentUser = action.payload;
-          toast.success("Данные загружены!");
       })
 
       // === Cross-Slice Listeners ===
@@ -931,8 +929,7 @@ const userSlice = createSlice({
                   ...(state.currentUser.habitStreaks || {}), 
                   [quest.id]: currentStreak 
               };
-              // Persist streaks to backend
-              api.updateInfo(state.currentUser.email, { habitStreaks: state.currentUser.habitStreaks }).catch(console.warn);
+              // Persist streaks to backend is handled in completeQuestAction thunk
           }
           
           // Check campaign progression via quests (2/3 Rule)
@@ -948,7 +945,6 @@ const userSlice = createSlice({
 
                 if (completedCount >= threshold && !state.currentUser.campaign.isDayComplete) {
                     state.currentUser.campaign.isDayComplete = true;
-                    toast.success("День пройден! (2/3 заданий)", { autoClose: false });
                 }
             }
           }
@@ -963,7 +959,6 @@ const userSlice = createSlice({
               newXp -= nextLevelXp;
               currentLevel++;
               nextLevelXp = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
-              toast.success(`Уровень повышен! Теперь ты ${currentLevel} уровня!`);
           }
 
           state.currentUser.currentXp = newXp;

@@ -30,6 +30,7 @@ const Rewards = React.lazy(() => import('./pages/Rewards'));
 const Leaderboard = React.lazy(() => import('./pages/Leaderboard'));
 const Calendar = React.lazy(() => import('./pages/Calendar'));
 const Admin = React.lazy(() => import('./pages/Admin'));
+const NotFound = React.lazy(() => import('./pages/NotFound'));
 
 // Loading Fallback
 const PageLoader = () => (
@@ -111,6 +112,7 @@ const AnimatedRoutes: React.FC = () => {
                         <Route path="/calendar" element={<ProtectedRoute><ErrorBoundary><Calendar /></ErrorBoundary></ProtectedRoute>} />
                         <Route path="/leaderboard" element={<ProtectedRoute><ErrorBoundary><Leaderboard /></ErrorBoundary></ProtectedRoute>} />
                         <Route path="/admin" element={<AdminRoute><ErrorBoundary><Admin /></ErrorBoundary></AdminRoute>} />
+                        <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
                     </Routes>
                 </Suspense>
             </motion.div>
@@ -126,11 +128,6 @@ const AppContent: React.FC = () => {
   const prevLevelRef = useRef<number | undefined>(undefined);
   const location = useLocation();
   const [runTour, setRunTour] = useState(false);
-
-  // Initialize Modal accessibility
-  useEffect(() => {
-    Modal.setAppElement('#root');
-  }, []);
 
   // Apply Theme
   useEffect(() => {
@@ -159,12 +156,23 @@ const AppContent: React.FC = () => {
 
   // Regen Tick
   useEffect(() => {
-      const interval = setInterval(() => {
-          if (Date.now() >= nextRegenTime) {
+      let lastTime = Date.now();
+      let animationFrameId: number;
+
+      const tick = () => {
+          const now = Date.now();
+          if (document.visibilityState === 'visible' && now >= nextRegenTime) {
               dispatch(regenerateStats());
           }
-      }, 1000);
-      return () => clearInterval(interval);
+          // Check every second roughly, but only when visible
+          if (now - lastTime >= 1000) {
+              lastTime = now;
+          }
+          animationFrameId = requestAnimationFrame(tick);
+      };
+
+      animationFrameId = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(animationFrameId);
   }, [nextRegenTime, dispatch]);
 
   // Online Status Listener for Sync

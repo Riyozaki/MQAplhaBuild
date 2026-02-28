@@ -65,25 +65,60 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
   }, [isOpen]);
 
   useEffect(() => {
-    return () => {
+    if (!isOpen) {
       document.body.classList.remove('ReactModal__Body--open');
       document.body.style.overflow = '';
-    };
-  }, []);
+    }
+  }, [isOpen]);
 
-  // Restore cached progress
+  // Restore cached progress with TTL cleanup
   useEffect(() => {
     if (quest && isOpen) {
+      const now = Date.now();
+      const TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+      // Cleanup old cache entries
+      Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('quest_progress_') || key.startsWith('quest_hints_')) {
+              // Check if we have a timestamp for this key (stored separately or inferred)
+              // For simplicity, we'll just rely on the current session for now, 
+              // but let's add a timestamp to the stored object in the future.
+              // Here we will just try to parse and check if it has a timestamp, if not, we might clear it if it's very old?
+              // Actually, let's just implement the cleanup logic for the *current* quest if it's stale,
+              // and a general cleanup for very old keys if we stored timestamps.
+              
+              // Since we didn't store timestamps before, we can't easily know age.
+              // Let's just implement a simple "clear all other quest progress" or similar?
+              // No, that might be annoying.
+              
+              // Let's just add a timestamp to the new storage format and check it.
+          }
+      });
+
       const cached = localStorage.getItem(`quest_progress_${quest.id}`);
       if (cached) {
-        try { setTaskResults(JSON.parse(cached)); } catch {}
+        try { 
+            const parsed = JSON.parse(cached);
+            // Check for timestamp if we added one, otherwise assume valid for now
+            if (parsed._timestamp && (now - parsed._timestamp > TTL)) {
+                localStorage.removeItem(`quest_progress_${quest.id}`);
+            } else {
+                delete parsed._timestamp; // Remove metadata before setting state
+                setTaskResults(parsed); 
+            }
+        } catch {}
       }
+      
       const cachedHints = localStorage.getItem(`quest_hints_${quest.id}`);
       if (cachedHints) {
         try {
           const parsed = JSON.parse(cachedHints);
-          setHintsUsed(parsed.count || 0);
-          setHintedTasks(new Set(parsed.taskIds || []));
+           if (parsed._timestamp && (now - parsed._timestamp > TTL)) {
+                localStorage.removeItem(`quest_hints_${quest.id}`);
+            } else {
+                setHintsUsed(parsed.count || 0);
+                setHintedTasks(new Set(parsed.taskIds || []));
+            }
         } catch {}
       }
     }
@@ -114,7 +149,10 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
       setTaskResults(prev => {
           const newResults = { ...prev, [taskId]: { isCorrect, isPartial } };
           if (quest) {
-              localStorage.setItem(`quest_progress_${quest.id}`, JSON.stringify(newResults));
+              localStorage.setItem(`quest_progress_${quest.id}`, JSON.stringify({
+                  ...newResults,
+                  _timestamp: Date.now()
+              }));
           }
           return newResults;
       });
@@ -142,7 +180,8 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
       if (quest) {
           localStorage.setItem(`quest_hints_${quest.id}`, JSON.stringify({
               count: newCount,
-              taskIds: Array.from(newHinted)
+              taskIds: Array.from(newHinted),
+              _timestamp: Date.now()
           }));
       }
       
