@@ -166,9 +166,15 @@ export interface UserProfile {
   // v2.0 Stats
   totalQuestsCompleted?: number;
   totalXpEarned?: number;
+  totalCoinsEarned?: number;
   weeklyXp?: number;
   weeklyXpResetDate?: string;
   tutorialCompleted?: boolean;
+
+  // Guilds
+  guildId?: string;
+  guildName?: string;
+  guildRole?: GuildRole;
 
   // Story Mode
   lastCampaignAdvanceDate?: string; // ISO Date string of last advancement
@@ -200,4 +206,101 @@ export interface AdminAnalyticsData {
   appTimeMinutes: number;
   completedQuests: number;
   avgMotivation: number;
+}
+
+// --- Guilds ---
+
+export type GuildRole = 'leader' | 'officer' | 'member';
+
+export interface GuildMember {
+  email: string;
+  username: string;
+  role: GuildRole;
+  level: number;
+  className: string;
+  xpContributed: number;
+  joinedAt: string;
+}
+
+export interface GuildQuest {
+  questId: string;
+  guildId: string;
+  questName: string;
+  questType: 'collective' | 'competitive';
+  category: string;
+  targetValue: number;
+  currentValue: number;
+  status: 'active' | 'completed' | 'expired';
+  createdBy: string;
+  createdAt: string;
+  expiresAt: string;
+  contributors: { email: string; amount: number }[];
+  rewards: {
+    xp: number;
+    coins: number;
+    reputation: number;
+  };
+}
+
+export interface GuildLevelInfo {
+  level: number;
+  name: string;
+  bonusSlots: number;
+  currentXp: number;
+  nextLevelXp: number | null;
+}
+
+export interface GuildData {
+  guildId: string;
+  name: string;
+  description: string;
+  emblem: string;
+  leaderEmail: string;
+  totalXp: number;
+  treasury: number;
+  reputation: number;
+  createdAt: string;
+  guildLevel: GuildLevelInfo;
+  members: GuildMember[];
+  quests: GuildQuest[];
+  memberCount: number;
+  maxMembers: number;
+  myRole: GuildRole | null;
+  settings: any;
+}
+
+export interface GuildSummary {
+  guildId: string;
+  name: string;
+  description: string;
+  emblem: string;
+  level: number;
+  levelName: string;
+  totalXp: number;
+  reputation: number;
+  memberCount: number;
+  maxMembers: number;
+  isOpen: boolean;
+  createdAt: string;
+}
+
+export interface GuildLeaderboardEntry {
+  guildId: string;
+  name: string;
+  emblem: string;
+  level: number;
+  levelName: string;
+  totalXp: number;
+  reputation: number;
+  memberCount: number;
+  treasury: number;
+}
+
+export interface GuildMessage {
+  guildId: string;
+  email: string;
+  username: string;
+  message: string;
+  messageType: 'text' | 'system' | 'achievement';
+  createdAt: string;
 }

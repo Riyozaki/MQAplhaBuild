@@ -1,6 +1,9 @@
-import { UserProfile } from '../types';
+import { UserProfile, GuildData, GuildSummary, GuildLeaderboardEntry, GuildMessage } from '../types';
 import { store } from '../store';
 import { setPendingSyncCount } from '../store/userSlice';
+
+// ...
+
 
 // ═══════════════════════════════════════════════════════════
 // ВАЖНО: После деплоя нового скрипта v3 — вставь сюда новый URL
@@ -458,6 +461,67 @@ export const api = {
     // v3: Выход — очищаем токен
     logout: () => {
         clearToken();
+    },
+
+    // ── 16. Guilds ──
+    getMyGuild: async (email: string) => {
+        return await request<{success: true, data: GuildData | null, message?: string}>('getMyGuild', { email }, 'GET');
+    },
+
+    getGuildsList: async () => {
+        return await request<{success: true, data: GuildSummary[]}>('getGuildsList', {}, 'GET');
+    },
+
+    getGuildLeaderboard: async () => {
+        return await request<{success: true, data: GuildLeaderboardEntry[]}>('getGuildLeaderboard', {}, 'GET');
+    },
+
+    getGuildChat: async (email: string) => {
+        return await request<{success: true, data: GuildMessage[]}>('getGuildChat', { email }, 'GET');
+    },
+
+    createGuild: async (email: string, name: string, description: string, emblem: string, isOpen: boolean) => {
+        return await request<{success: true, guildId: string, message: string}>('createGuild', { email, name, description, emblem, isOpen });
+    },
+
+    joinGuild: async (email: string, guildId: string) => {
+        return await request<{success: true, message: string}>('joinGuild', { email, guildId });
+    },
+
+    leaveGuild: async (email: string) => {
+        return await request<{success: true, message: string}>('leaveGuild', { email });
+    },
+
+    transferLeadership: async (email: string, newLeaderEmail: string) => {
+        return await request<{success: true, message: string}>('transferLeadership', { email, newLeaderEmail });
+    },
+
+    kickMember: async (email: string, targetEmail: string) => {
+        return await request<{success: true, message: string}>('kickMember', { email, targetEmail });
+    },
+
+    setMemberRole: async (email: string, targetEmail: string, newRole: 'member' | 'officer') => {
+        return await request<{success: true, message: string}>('setMemberRole', { email, targetEmail, newRole });
+    },
+
+    guildDonate: async (email: string, amount: number) => {
+        return await request<{success: true, donated: number, newBalance: number, message: string}>('guildDonate', { email, amount });
+    },
+
+    updateGuildSettings: async (email: string, settings: { description?: string, emblem?: string, isOpen?: boolean, settings?: any }) => {
+        return await request<{success: true}>('updateGuildSettings', { email, ...settings });
+    },
+
+    createGuildQuest: async (email: string, questName: string, targetValue: number, questType: string, category: string, rewards: any) => {
+        return await request<{success: true, questId: string, expiresAt: string}>('createGuildQuest', { email, questName, targetValue, questType, category, rewards });
+    },
+
+    contributeGuildQuest: async (email: string, questId: string, amount: number) => {
+        return await request<{success: true, currentValue: number, targetValue: number, completed: boolean, message: string}>('contributeGuildQuest', { email, questId, amount });
+    },
+
+    sendGuildMessage: async (email: string, message: string, messageType: 'text' | 'system' | 'achievement' = 'text') => {
+        return await request<{success: true}>('sendGuildMessage', { email, message, messageType });
     },
 
     // Expose flush for manual triggering

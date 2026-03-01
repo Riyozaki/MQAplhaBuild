@@ -475,7 +475,6 @@ export const completeQuestAction = createAsyncThunk(
                     : undefined
             };
             await api.completeQuest(apiPayload);
-            audio.playQuestComplete();
         } catch (e) { handleApiError(e); }
         
         return { 
@@ -498,9 +497,17 @@ const questsSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
+      .addCase(fetchQuests.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
       .addCase(fetchQuests.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.list = action.payload;
+      })
+      .addCase(fetchQuests.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message || 'Failed to fetch quests';
       })
       .addCase(markQuestCompleted.fulfilled, (state, action) => {
         const quest = state.list.find(q => q.id === action.payload);

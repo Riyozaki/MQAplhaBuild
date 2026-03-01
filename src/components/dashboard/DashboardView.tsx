@@ -64,7 +64,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
     
     // Derived state
     const habits = quests.filter(q => q.isHabit);
-    const dailyChallenges = useMemo(() => getDailyRandomQuests(quests), [quests]);
+    const dailyChallenges = useMemo(() => getDailyRandomQuests(quests), [quests, user.questHistory?.length]);
     const rewards = shopItems.filter(item => item.type === 'consumable').slice(0, 4);
     const currentMp = Math.max(0, 10 - (user.dailyCompletionsCount || 0));
     const isExhausted = currentMp <= 0;
@@ -106,7 +106,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
         if (isQuestCompletedToday(Number(q.id)) || isPendingQuest) return;
         
         dispatch(completeQuestAction({ quest: q, multiplier: 1 })).unwrap().then(() => {
-            playCoins(); 
             confetti({ 
                 particleCount: 30, 
                 spread: 40, 

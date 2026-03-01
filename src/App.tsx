@@ -30,6 +30,8 @@ const Rewards = React.lazy(() => import('./pages/Rewards'));
 const Leaderboard = React.lazy(() => import('./pages/Leaderboard'));
 const Calendar = React.lazy(() => import('./pages/Calendar'));
 const Admin = React.lazy(() => import('./pages/Admin'));
+const Guild = React.lazy(() => import('./pages/Guild'));
+const GuildsList = React.lazy(() => import('./pages/GuildsList'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 
 // Loading Fallback
@@ -111,6 +113,8 @@ const AnimatedRoutes: React.FC = () => {
                         <Route path="/rewards" element={<ProtectedRoute><ErrorBoundary><Rewards /></ErrorBoundary></ProtectedRoute>} />
                         <Route path="/calendar" element={<ProtectedRoute><ErrorBoundary><Calendar /></ErrorBoundary></ProtectedRoute>} />
                         <Route path="/leaderboard" element={<ProtectedRoute><ErrorBoundary><Leaderboard /></ErrorBoundary></ProtectedRoute>} />
+                        <Route path="/guild" element={<ProtectedRoute><ErrorBoundary><Guild /></ErrorBoundary></ProtectedRoute>} />
+                        <Route path="/guilds" element={<ProtectedRoute><ErrorBoundary><GuildsList /></ErrorBoundary></ProtectedRoute>} />
                         <Route path="/admin" element={<AdminRoute><ErrorBoundary><Admin /></ErrorBoundary></AdminRoute>} />
                         <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
                     </Routes>

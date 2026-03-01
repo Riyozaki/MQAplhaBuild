@@ -2,33 +2,45 @@ import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
 import { fetchLeaderboard, setLeaderboardType } from '../store/socialSlice';
-import { Crown, Flame, Trophy, Swords, Target, RefreshCw, TrendingUp, Star, Zap, ChevronUp, Loader2, WifiOff, Shield, Medal } from 'lucide-react';
+import { fetchGuildLeaderboard } from '../store/guildSlice';
+import { Crown, Flame, Trophy, Swords, Target, RefreshCw, TrendingUp, Star, Zap, ChevronUp, Loader2, WifiOff, Shield, Medal, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAvatarData } from '../data/avatars';
 
-type TabType = 'alltime' | 'weekly';
+type TabType = 'alltime' | 'weekly' | 'guilds';
 
 const Leaderboard: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
   const { leaderboard, leaderboardLoading, leaderboardError, leaderboardType, lastFetched } = useSelector((state: RootState) => state.social);
+  const { guildLeaderboard } = useSelector((state: RootState) => state.guild);
   const [activeTab, setActiveTab] = useState<TabType>('alltime');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Fetch leaderboard on mount & tab change
   useEffect(() => {
-    dispatch(fetchLeaderboard(activeTab));
+    if (activeTab === 'guilds') {
+      dispatch(fetchGuildLeaderboard());
+    } else {
+      dispatch(fetchLeaderboard(activeTab));
+    }
   }, [dispatch, activeTab]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await dispatch(fetchLeaderboard(activeTab));
+    if (activeTab === 'guilds') {
+      await dispatch(fetchGuildLeaderboard());
+    } else {
+      await dispatch(fetchLeaderboard(activeTab));
+    }
     setTimeout(() => setIsRefreshing(false), 600);
   };
 
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab);
-    dispatch(setLeaderboardType(tab));
+    if (tab !== 'guilds') {
+      dispatch(setLeaderboardType(tab));
+    }
   };
 
   if (!currentUser) return null;
@@ -47,6 +59,7 @@ const Leaderboard: React.FC = () => {
     streakDays: currentUser.streakDays || 0,
     avatar: currentUser.avatar,
     isCurrentUser: true,
+    guildName: currentUser.guildName, // v3: Add guild name
   };
 
   // Check if current user is already in leaderboard (by username match)
@@ -74,8 +87,8 @@ const Leaderboard: React.FC = () => {
   const currentUserRank = sortedUsers.findIndex(u => u.isCurrentUser) + 1;
 
   // Top 3 podium
-  const podium = sortedUsers.slice(0, 3);
-  const restOfBoard = sortedUsers.slice(3, 20);
+  const podium = activeTab === 'guilds' ? guildLeaderboard.slice(0, 3) : sortedUsers.slice(0, 3);
+  const restOfBoard = activeTab === 'guilds' ? guildLeaderboard.slice(3, 20) : sortedUsers.slice(3, 20);
 
   const getRankBadge = (index: number) => {
     if (index === 0) return <Crown className="h-6 w-6 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]" />;
@@ -111,13 +124,13 @@ const Leaderboard: React.FC = () => {
         </motion.div>
         <h1 className="text-3xl font-bold text-white rpg-font mb-1">Зал Славы</h1>
         <p className="text-slate-400 text-sm">
-          Лучшие герои нашей академии
+          Лучшие герои и гильдии нашей академии
         </p>
       </div>
 
       {/* Tabs + Refresh */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex bg-slate-900/60 rounded-xl p-1 border border-slate-700/50">
+      <div className="flex items-center justify-between gap-3 overflow-x-auto pb-2">
+        <div className="flex bg-slate-900/60 rounded-xl p-1 border border-slate-700/50 whitespace-nowrap">
           <button
             onClick={() => handleTabChange('alltime')}
             className={`px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${
@@ -140,20 +153,31 @@ const Leaderboard: React.FC = () => {
             <Flame size={14} className="inline mr-1.5 -mt-0.5" />
             Эта неделя
           </button>
+          <button
+            onClick={() => handleTabChange('guilds')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${
+              activeTab === 'guilds'
+                ? 'bg-indigo-600/80 text-white shadow-lg shadow-indigo-900/30'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Shield size={14} className="inline mr-1.5 -mt-0.5" />
+            Гильдии
+          </button>
         </div>
 
         <button
           onClick={handleRefresh}
           disabled={leaderboardLoading}
-          className="p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all disabled:opacity-50"
+          className="p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all disabled:opacity-50 shrink-0"
           title="Обновить"
         >
           <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
         </button>
       </div>
 
-      {/* Your Rank Card */}
-      {currentUserRank > 0 && (
+      {/* Your Rank Card (Only for user leaderboards) */}
+      {activeTab !== 'guilds' && currentUserRank > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -171,6 +195,7 @@ const Leaderboard: React.FC = () => {
                 <div className="text-white font-bold">{currentUser.username}</div>
                 <div className="text-purple-300 text-xs">
                   {currentUser.className || 'Искатель'} • Уровень {currentUser.level}
+                  {currentUser.guildName && <span className="ml-2 text-indigo-400">🛡️ {currentUser.guildName}</span>}
                 </div>
               </div>
             </div>
@@ -185,7 +210,7 @@ const Leaderboard: React.FC = () => {
       )}
 
       {/* Loading State */}
-      {leaderboardLoading && leaderboard.length === 0 && (
+      {leaderboardLoading && leaderboard.length === 0 && activeTab !== 'guilds' && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Loader2 className="h-8 w-8 text-purple-400 animate-spin" />
           <p className="text-slate-400 text-sm">Загружаем таблицу героев...</p>
@@ -193,7 +218,7 @@ const Leaderboard: React.FC = () => {
       )}
 
       {/* Error State */}
-      {leaderboardError && leaderboard.length === 0 && !leaderboardLoading && (
+      {leaderboardError && leaderboard.length === 0 && !leaderboardLoading && activeTab !== 'guilds' && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <WifiOff className="h-8 w-8 text-slate-500" />
           <p className="text-slate-400 text-sm text-center">
@@ -210,11 +235,19 @@ const Leaderboard: React.FC = () => {
       )}
 
       {/* Podium — Top 3 */}
-      {!leaderboardLoading && sortedUsers.length >= 3 && (
+      {!leaderboardLoading && (activeTab === 'guilds' ? guildLeaderboard.length : sortedUsers.length) >= 3 && (
         <div className="flex items-end justify-center gap-3 pt-4 pb-2">
           {podiumOrder.map((originalIndex, visualIndex) => {
-            const user = podium[originalIndex];
-            if (!user) return null;
+            const item = podium[originalIndex];
+            if (!item) return null;
+            
+            const isGuild = activeTab === 'guilds';
+            const name = isGuild ? (item as any).name : (item as any).username;
+            const emblem = isGuild ? (item as any).emblem : null;
+            const avatar = !isGuild ? (item as any).avatar : null;
+            const xp = isGuild ? (item as any).totalXp : getSortedXp(item);
+            const isCurrent = !isGuild && (item as any).isCurrentUser;
+
             return (
               <motion.div
                 key={originalIndex}
@@ -223,13 +256,17 @@ const Leaderboard: React.FC = () => {
                 transition={{ delay: visualIndex * 0.15 }}
                 className="flex flex-col items-center"
               >
-                {/* Avatar */}
+                {/* Avatar/Emblem */}
                 <div className={`relative mb-2 ${originalIndex === 0 ? 'scale-110' : ''}`}>
                   <div className={`w-14 h-14 rounded-2xl border-2 ${podiumBorders[visualIndex]} bg-gradient-to-br ${podiumBgs[visualIndex]} flex items-center justify-center text-2xl shadow-lg ${podiumGlows[visualIndex]}`}>
-                    {(() => {
-                        const AvatarIcon = getAvatarData(user.avatar).icon;
-                        return <AvatarIcon size={28} className="text-white drop-shadow-md" />;
-                    })()}
+                    {isGuild ? (
+                      <span className="text-3xl">{emblem}</span>
+                    ) : (
+                      (() => {
+                          const AvatarIcon = getAvatarData(avatar).icon;
+                          return <AvatarIcon size={28} className="text-white drop-shadow-md" />;
+                      })()
+                    )}
                   </div>
                   {originalIndex === 0 && (
                     <div className="absolute -top-2 -right-2 text-lg">👑</div>
@@ -238,14 +275,14 @@ const Leaderboard: React.FC = () => {
 
                 {/* Name */}
                 <div className={`text-xs font-bold truncate max-w-[90px] text-center ${
-                  user.isCurrentUser ? 'text-purple-300' : 'text-slate-200'
+                  isCurrent ? 'text-purple-300' : 'text-slate-200'
                 }`}>
-                  {user.username}{user.isCurrentUser ? ' (Вы)' : ''}
+                  {name}{isCurrent ? ' (Вы)' : ''}
                 </div>
 
                 {/* Level & XP */}
                 <div className="text-[10px] text-slate-400 mt-0.5">
-                  Ур. {user.level} • {getSortedXp(user)} XP
+                  Ур. {item.level} • {xp.toLocaleString()} XP
                 </div>
 
                 {/* Podium block */}
@@ -259,31 +296,40 @@ const Leaderboard: React.FC = () => {
       )}
 
       {/* Main Table */}
-      {!leaderboardLoading && sortedUsers.length > 0 && (
+      {!leaderboardLoading && (activeTab === 'guilds' ? guildLeaderboard.length : sortedUsers.length) > 0 && (
         <div className="glass-panel rounded-2xl overflow-hidden border border-slate-700/50">
           {/* Table Header */}
           <div className="bg-slate-900/80 px-4 py-3 grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-700/50">
             <div className="col-span-1 text-center">#</div>
-            <div className="col-span-5">Герой</div>
+            <div className="col-span-5">{activeTab === 'guilds' ? 'Гильдия' : 'Герой'}</div>
             <div className="col-span-2 text-center">Уровень</div>
             <div className="col-span-2 text-center">
               {activeTab === 'weekly' ? 'XP/Нед' : 'Общ. XP'}
             </div>
-            <div className="col-span-2 text-right">Квестов</div>
+            <div className="col-span-2 text-right">{activeTab === 'guilds' ? 'Участников' : 'Квестов'}</div>
           </div>
 
           {/* Rows */}
           <div className="divide-y divide-slate-800/40">
-            {restOfBoard.map((user, idx) => {
+            {restOfBoard.map((item, idx) => {
               const globalIndex = idx + 3; // starts after podium
+              const isGuild = activeTab === 'guilds';
+              const name = isGuild ? (item as any).name : (item as any).username;
+              const emblem = isGuild ? (item as any).emblem : null;
+              const avatar = !isGuild ? (item as any).avatar : null;
+              const xp = isGuild ? (item as any).totalXp : getSortedXp(item);
+              const isCurrent = !isGuild && (item as any).isCurrentUser;
+              const level = item.level;
+              const count = isGuild ? (item as any).memberCount : ((item as any).totalQuestsCompleted || 0);
+
               return (
                 <motion.div
-                  key={`${user.username}-${globalIndex}`}
+                  key={`${name}-${globalIndex}`}
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.03 }}
                   className={`grid grid-cols-12 gap-2 px-4 py-3 items-center transition-colors duration-150 ${
-                    user.isCurrentUser
+                    isCurrent
                       ? 'bg-purple-900/15 border-l-2 border-purple-500'
                       : 'hover:bg-slate-800/30 border-l-2 border-transparent'
                   }`}
@@ -293,30 +339,37 @@ const Leaderboard: React.FC = () => {
                     {getRankBadge(globalIndex)}
                   </div>
 
-                  {/* User Info */}
+                  {/* Info */}
                   <div className="col-span-5 flex items-center gap-2.5 min-w-0">
                     <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-lg border ${
-                      user.isCurrentUser
+                      isCurrent
                         ? 'border-purple-500/40 bg-purple-900/20'
                         : 'border-slate-700/50 bg-slate-800/50'
                     }`}>
-                      {(() => {
-                          const AvatarIcon = getAvatarData(user.avatar).icon;
-                          return <AvatarIcon size={18} className={user.isCurrentUser ? 'text-purple-300' : 'text-slate-300'} />;
-                      })()}
+                      {isGuild ? (
+                        <span>{emblem}</span>
+                      ) : (
+                        (() => {
+                            const AvatarIcon = getAvatarData(avatar).icon;
+                            return <AvatarIcon size={18} className={isCurrent ? 'text-purple-300' : 'text-slate-300'} />;
+                        })()
+                      )}
                     </div>
                     <div className="min-w-0">
                       <div className={`text-sm font-bold truncate ${
-                        user.isCurrentUser ? 'text-purple-300' : 'text-slate-200'
+                        isCurrent ? 'text-purple-300' : 'text-slate-200'
                       }`}>
-                        {user.username}
-                        {user.isCurrentUser && <span className="text-purple-400 ml-1 text-xs">(Вы)</span>}
+                        {name}
+                        {isCurrent && <span className="text-purple-400 ml-1 text-xs">(Вы)</span>}
                       </div>
                       <div className="text-[10px] text-slate-500 flex items-center gap-1">
-                        {user.className || 'Искатель'}
-                        {(user.streakDays || 0) >= 3 && (
-                          <span className="inline-flex items-center gap-0.5 text-amber-400">
-                            <Flame size={9} /> {user.streakDays}
+                        {isGuild ? (item as any).levelName : (item as any).className || 'Искатель'}
+                        {!isGuild && (item as any).guildName && (
+                          <span className="text-indigo-400 ml-1">🛡️ {(item as any).guildName}</span>
+                        )}
+                        {!isGuild && ((item as any).streakDays || 0) >= 3 && (
+                          <span className="inline-flex items-center gap-0.5 text-amber-400 ml-1">
+                            <Flame size={9} /> {(item as any).streakDays}
                           </span>
                         )}
                       </div>
@@ -325,7 +378,7 @@ const Leaderboard: React.FC = () => {
 
                   {/* Level */}
                   <div className="col-span-2 text-center">
-                    <span className="text-sm font-bold text-slate-300">{user.level}</span>
+                    <span className="text-sm font-bold text-slate-300">{level}</span>
                   </div>
 
                   {/* XP */}
@@ -333,14 +386,14 @@ const Leaderboard: React.FC = () => {
                     <span className={`text-sm font-mono font-bold ${
                       activeTab === 'weekly' ? 'text-emerald-400' : 'text-purple-400'
                     }`}>
-                      {getSortedXp(user).toLocaleString()}
+                      {xp.toLocaleString()}
                     </span>
                   </div>
 
-                  {/* Quests Completed */}
+                  {/* Count */}
                   <div className="col-span-2 text-right">
                     <span className="text-sm text-slate-400 font-mono">
-                      {user.totalQuestsCompleted || 0}
+                      {count}
                     </span>
                   </div>
                 </motion.div>
@@ -349,9 +402,9 @@ const Leaderboard: React.FC = () => {
           </div>
 
           {/* Empty state */}
-          {sortedUsers.length <= 3 && restOfBoard.length === 0 && (
+          {(activeTab === 'guilds' ? guildLeaderboard.length : sortedUsers.length) <= 3 && restOfBoard.length === 0 && (
             <div className="py-8 text-center text-slate-500 text-sm">
-              Пока мало данных. Выполняй квесты, чтобы подняться в рейтинге!
+              Пока мало данных.
             </div>
           )}
         </div>

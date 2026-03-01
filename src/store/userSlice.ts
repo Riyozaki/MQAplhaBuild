@@ -7,9 +7,11 @@ import { api, BossBattlePayload } from '../services/api';
 import { audio } from '../services/audio';
 import { handleApiError } from '../utils/errorHandler';
 import { CAMPAIGN_DATA } from '../data/campaignData';
+import { CALENDAR_CONFIG } from './rewardsSlice';
 
 // Import actions from other slices for extraReducers
 import { completeQuestAction } from './questsSlice';
+import { createGuild, guildDonate, leaveGuild, joinGuild, fetchMyGuild } from './guildSlice';
 
 const STORAGE_KEY_EMAIL = 'motiva_user_email';
 
@@ -110,7 +112,7 @@ const mapSheetToUser = (rawData: any): UserProfile => {
 
     const mappedHistory: QuestHistoryItem[] = Array.isArray(quests) ? quests.map((q: any) => {
         const rawId = q.questId || q.visitorId;
-        const parsedId = isNaN(Number(rawId)) ? 0 : Number(rawId);
+        const parsedId = rawId; // Allow string IDs
         return {
             questId: parsedId,
             questTitle: q.questName || q.visitorName || 'Unknown',
@@ -195,6 +197,12 @@ const mapSheetToUser = (rawData: any): UserProfile => {
         lastDailyMood: mappedMoodDate,
         completedQuests: mappedHistory.length,
         hasParentalConsent: true,
+
+        // Guilds
+        guildId: info.guildId || undefined,
+        guildName: info.guildName || undefined,
+        guildRole: info.guildRole || undefined,
+        guildXPContributed: Number(info.guildXPContributed) || 0,
     } as UserProfile;
 };
 
@@ -259,15 +267,34 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
                 normalizedUser.currentHp = loginRes.progress.currentHp;
             }
 
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            
+            // Reset daily completions if new day
+            if (normalizedUser.lastLoginDate !== todayStr) {
+                normalizedUser.dailyCompletionsCount = 0;
+            }
+
             if (!loginRes.alreadyLoggedIn) {
-                const now = new Date();
-                const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                 normalizedUser.lastLoginDate = todayStr;
 
                 const bonusMultiplier = 1 + (normalizedUser.streakDays * 0.1);
                 const coinsEarned = Math.floor(50 * bonusMultiplier);
                 const xpEarned = Math.floor(100 * bonusMultiplier);
                 
+                // --- CALENDAR REWARD LOGIC ---
+                const calendarReward = CALENDAR_CONFIG.find(c => c.day === normalizedUser.streakDays);
+                if (calendarReward) {
+                     if (calendarReward.item) {
+                         // Grant item
+                         if (!normalizedUser.inventory.includes(calendarReward.item)) {
+                             normalizedUser.inventory.push(calendarReward.item);
+                             api.addPurchase(normalizedUser.email, { id: calendarReward.item, name: 'Calendar Reward', cost: 0 }).catch(console.warn);
+                             toast.success(`🎁 Получена награда календаря!`);
+                         }
+                     }
+                }
+
                 reward = { coins: coinsEarned, xp: xpEarned, streak: normalizedUser.streakDays, bonusMultiplier };
                 dispatch(addExperience({ xp: xpEarned, coins: coinsEarned }));
             }
@@ -334,13 +361,35 @@ export const loginLocal = createAsyncThunk(
     if (loginRes.success) {
         normalizedUser.streakDays = loginRes.streakDays;
         
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        
+        // Reset daily completions if new day
+        if (normalizedUser.lastLoginDate !== todayStr) {
+            normalizedUser.dailyCompletionsCount = 0;
+        }
+
         if (!loginRes.alreadyLoggedIn) {
-             const now = new Date();
-             const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
              normalizedUser.lastLoginDate = todayStr;
 
              const bonusMultiplier = 1 + (normalizedUser.streakDays * 0.1);
-             reward = { coins: Math.floor(50 * bonusMultiplier), xp: Math.floor(100 * bonusMultiplier), streak: normalizedUser.streakDays, bonusMultiplier };
+             const coinsEarned = Math.floor(50 * bonusMultiplier);
+             const xpEarned = Math.floor(100 * bonusMultiplier);
+
+             // --- CALENDAR REWARD LOGIC ---
+             const calendarReward = CALENDAR_CONFIG.find(c => c.day === normalizedUser.streakDays);
+             if (calendarReward) {
+                  if (calendarReward.item) {
+                      // Grant item
+                      if (!normalizedUser.inventory.includes(calendarReward.item)) {
+                          normalizedUser.inventory.push(calendarReward.item);
+                          api.addPurchase(normalizedUser.email, { id: calendarReward.item, name: 'Calendar Reward', cost: 0 }).catch(console.warn);
+                          toast.success(`🎁 Получена награда календаря!`);
+                      }
+                  }
+             }
+
+             reward = { coins: coinsEarned, xp: xpEarned, streak: normalizedUser.streakDays, bonusMultiplier };
              dispatch(addExperience({ xp: reward.xp, coins: reward.coins }));
         }
     }
@@ -429,7 +478,7 @@ export const changeHeroClass = createAsyncThunk(
 
 export const purchaseItemAction = createAsyncThunk(
     'user/purchaseItem',
-    async (item: { id: string, name: string, cost: number }, { getState, rejectWithValue }) => {
+    async (item: { id: string, name: string, cost: number, type?: string }, { getState, rejectWithValue }) => {
         const state = getState() as RootState;
         const user = state.user.currentUser;
         if (!user || !user.email) return rejectWithValue("No user");
@@ -437,6 +486,11 @@ export const purchaseItemAction = createAsyncThunk(
         if (user.coins < item.cost) {
             toast.error("Не хватает золота!");
             return rejectWithValue("Insufficient funds");
+        }
+
+        if (item.type === 'skin' && user.inventory?.includes(item.id)) {
+            toast.warn('Этот облик уже у тебя!');
+            return rejectWithValue('Already owned');
         }
 
         try {
@@ -500,7 +554,6 @@ export const submitDailyMood = createAsyncThunk(
         } catch(e) { handleApiError(e); }
         
         await dispatch(addExperience({ xp: 30, coins: 15 }));
-        toast.success("Настроение учтено! +30 XP");
         return { ...payload, date: new Date().toISOString() };
     },
     {
@@ -528,20 +581,9 @@ export const startQuestAction = createAsyncThunk(
     }
 );
 
-// Rate Limiting
-const RATE_LIMIT_MS = 500;
-let lastXpAdd = 0;
-
 export const addExperience = createAsyncThunk(
   'user/addExperience',
   async (payload: { xp: number; coins: number }, { getState, dispatch }) => {
-    const now = Date.now();
-    if (now - lastXpAdd < RATE_LIMIT_MS) {
-        console.warn("Rate limit hit for addExperience");
-        return null;
-    }
-    lastXpAdd = now;
-
     const state = getState() as RootState;
     const user = state.user.currentUser;
     if (!user || !user.email) return null;
@@ -550,6 +592,7 @@ export const addExperience = createAsyncThunk(
     let currentLevel = user.level || 1;
     let nextLevelXp = user.nextLevelXp || 100 * Math.pow(1.5, currentLevel - 1);
     let newCoins = (user.coins || 0) + payload.coins;
+    let newTotalCoins = (user.totalCoinsEarned || 0) + payload.coins;
 
     let didLevelUp = false;
     while (newXp >= nextLevelXp) {
@@ -557,30 +600,26 @@ export const addExperience = createAsyncThunk(
       currentLevel++;
       nextLevelXp = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
       didLevelUp = true;
-      audio.playLevelUp();
-      toast.success(`Уровень повышен! Теперь ты ${currentLevel} уровня!`);
     }
 
     if (didLevelUp) analytics.track('level_up', user, { oldLevel: user.level, newLevel: currentLevel });
-    const updates = { currentXp: newXp, level: currentLevel, nextLevelXp, coins: newCoins };
+    const updates = { 
+        currentXp: newXp, 
+        level: currentLevel, 
+        nextLevelXp, 
+        coins: newCoins,
+        totalCoinsEarned: newTotalCoins 
+    };
     
     api.updateProgress(user.email, updates).catch(console.warn);
     
-    return { ...updates, rewardDelta: payload };
+    return { ...updates, rewardDelta: payload, didLevelUp };
   }
 );
-
-let lastAchievementCheck = 0;
 
 export const checkAchievements = createAsyncThunk(
     'achievements/checkAchievements',
     async (_, { getState, dispatch }) => {
-        const now = Date.now();
-        if (now - lastAchievementCheck < RATE_LIMIT_MS) {
-            return;
-        }
-        lastAchievementCheck = now;
-
         const state = getState() as RootState;
         const user = state.user.currentUser;
         const allAchievements = state.rewards.achievements;
@@ -596,7 +635,7 @@ export const checkAchievements = createAsyncThunk(
             let unlocked = false;
             switch (ach.conditionType) {
                 case 'quests': if (user.completedQuests >= ach.threshold) unlocked = true; break;
-                case 'coins': if (user.coins >= ach.threshold) unlocked = true; break;
+                case 'coins': if ((user.totalCoinsEarned || user.coins) >= ach.threshold) unlocked = true; break;
                 case 'xp':
                      if (ach.id === 'ach_lvl2' && user.level >= 2) unlocked = true;
                      if (ach.id === 'ach_lvl5' && user.level >= 5) unlocked = true;
@@ -987,6 +1026,41 @@ const userSlice = createSlice({
       .addCase(checkAchievements.fulfilled, (state, action) => {
           if (state.currentUser && action.payload) {
               state.currentUser = { ...state.currentUser, ...action.payload as any };
+          }
+      })
+      
+      // 4. Guild Slice Listener
+      .addCase(guildDonate.fulfilled, (state, action) => {
+          if (state.currentUser && action.payload.newBalance !== undefined) {
+              state.currentUser.coins = action.payload.newBalance;
+          }
+      })
+      .addCase(createGuild.fulfilled, (state, action) => {
+          if (state.currentUser) {
+              state.currentUser.coins = Math.max(0, state.currentUser.coins - 100);
+              state.currentUser.guildId = action.payload.guildId;
+              state.currentUser.guildName = action.meta.arg.name;
+              state.currentUser.guildRole = 'leader';
+          }
+      })
+      .addCase(joinGuild.fulfilled, (state, action) => {
+          if (state.currentUser) {
+              state.currentUser.guildId = action.meta.arg.guildId;
+              state.currentUser.guildRole = 'member';
+          }
+      })
+      .addCase(leaveGuild.fulfilled, (state) => {
+          if (state.currentUser) {
+              state.currentUser.guildId = undefined;
+              state.currentUser.guildName = undefined;
+              state.currentUser.guildRole = undefined;
+          }
+      })
+      .addCase(fetchMyGuild.fulfilled, (state, action) => {
+          if (state.currentUser && !action.payload) {
+              state.currentUser.guildId = undefined;
+              state.currentUser.guildName = undefined;
+              state.currentUser.guildRole = undefined;
           }
       });
   }

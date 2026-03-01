@@ -16,8 +16,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Anti-addiction: 1 Hour Session Limit
-const SESSION_DURATION = 60 * 60; 
+// Anti-addiction: 3 Hour Session Limit
+const SESSION_DURATION = 3 * 60 * 60; 
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const dispatch = useDispatch<AppDispatch>();

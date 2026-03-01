@@ -253,7 +253,6 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
           localStorage.removeItem(`quest_progress_${quest.id}`);
           localStorage.removeItem(`quest_hints_${quest.id}`);
 
-          playQuestComplete(); 
           setCompleted(true);
           dispatch(markQuestCompleted(quest.id));
           dispatch(fetchQuests());

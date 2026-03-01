@@ -9,10 +9,12 @@ import QuestModal from '../components/QuestModal';
 import BossBattleModal from '../components/BossBattleModal';
 import { Quest } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home as HomeIcon, Map as MapIcon } from 'lucide-react';
+import { Home as HomeIcon, Map as MapIcon, Shield } from 'lucide-react';
 import LandingPage from '../components/LandingPage';
 import DashboardView from '../components/dashboard/DashboardView';
 import CampaignView from '../components/dashboard/CampaignView';
+import Guild from './Guild';
+import GuildsList from './GuildsList';
 
 const HomeSkeleton = () => (
     <div className="animate-pulse space-y-8 max-w-7xl mx-auto w-full">
@@ -50,7 +52,7 @@ const StoryDashboard: React.FC = () => {
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [questMultiplier, setQuestMultiplier] = useState(1);
   const [isBossModalOpen, setIsBossModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'dashboard' | 'campaign'>('dashboard');
+  const [viewMode, setViewMode] = useState<'dashboard' | 'campaign' | 'guild'>('dashboard');
 
   useEffect(() => {
     if (status === 'idle') {
@@ -65,6 +67,7 @@ const StoryDashboard: React.FC = () => {
                   <div className="bg-slate-900/80 backdrop-blur rounded-2xl p-1 flex gap-1 border border-slate-700/50 shadow-xl opacity-80 pointer-events-none">
                       <div className="px-6 py-2 rounded-xl bg-slate-800 text-slate-500 flex items-center gap-2"><HomeIcon size={16} /></div>
                       <div className="px-6 py-2 rounded-xl text-slate-600 flex items-center gap-2"><MapIcon size={16} /></div>
+                      <div className="px-6 py-2 rounded-xl text-slate-600 flex items-center gap-2"><Shield size={16} /></div>
                   </div>
               </div>
             <HomeSkeleton />
@@ -104,11 +107,17 @@ const StoryDashboard: React.FC = () => {
               >
                   <MapIcon size={16} /> Кампания
               </button>
+              <button 
+                onClick={() => setViewMode('guild')}
+                className={`px-6 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${viewMode === 'guild' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+              >
+                  <Shield size={16} /> Гильдия
+              </button>
           </div>
       </div>
 
       <AnimatePresence mode="wait">
-          {viewMode === 'dashboard' ? (
+          {viewMode === 'dashboard' && (
               <motion.div key="dashboard" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.3 }}>
                   <DashboardView 
                     user={user} 
@@ -117,7 +126,9 @@ const StoryDashboard: React.FC = () => {
                     onQuestSelect={handleQuestOpen}
                   />
               </motion.div>
-          ) : (
+          )}
+          
+          {viewMode === 'campaign' && (
               <motion.div key="campaign" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
                   <CampaignView 
                     currentDayNum={currentDayNum}
@@ -131,6 +142,12 @@ const StoryDashboard: React.FC = () => {
                     isDayComplete={user.campaign?.isDayComplete}
                     user={user}
                   />
+              </motion.div>
+          )}
+
+          {viewMode === 'guild' && (
+              <motion.div key="guild" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}>
+                  {user.guildId ? <Guild /> : <GuildsList />}
               </motion.div>
           )}
       </AnimatePresence>
