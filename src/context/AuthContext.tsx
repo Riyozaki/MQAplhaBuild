@@ -128,7 +128,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         timeRemaining
       }}
     >
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

@@ -1065,7 +1065,7 @@ const userSlice = createSlice({
       })
       .addCase(createGuild.rejected, (state) => {
           // Revert optimistic update if needed, or just set status
-          state.status = 'failed';
+          // state.status = 'failed'; // Removed as status doesn't exist on UserState
       })
       .addCase(leaveGuild.fulfilled, (state) => {
           if (state.currentUser) {
@@ -1078,10 +1078,16 @@ const userSlice = createSlice({
           // Optional: Update user stats if contribution gives rewards directly
       })
       .addCase(fetchMyGuild.fulfilled, (state, action) => {
-          if (state.currentUser && !action.payload) {
-              state.currentUser.guildId = undefined;
-              state.currentUser.guildName = undefined;
-              state.currentUser.guildRole = undefined;
+          if (state.currentUser) {
+              if (!action.payload) {
+                  state.currentUser.guildId = undefined;
+                  state.currentUser.guildName = undefined;
+                  state.currentUser.guildRole = undefined;
+              } else {
+                  state.currentUser.guildId = action.payload.guildId;
+                  state.currentUser.guildName = action.payload.name;
+                  state.currentUser.guildRole = action.payload.myRole || undefined;
+              }
           }
       });
   }

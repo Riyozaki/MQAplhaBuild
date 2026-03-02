@@ -13,13 +13,19 @@ const GuildChat: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSending, setIsSending] = useState(false);
 
+  const currentUserRef = useRef(currentUser);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
   useEffect(() => {
     if (currentUser?.email && currentUser?.guildId) {
       dispatch(fetchGuildChat(currentUser.email));
       // Optional: Poll for new messages every 10 seconds
       const interval = setInterval(() => {
-        if (currentUser?.guildId) {
-            dispatch(fetchGuildChat(currentUser.email));
+        if (currentUserRef.current?.guildId) {
+            dispatch(fetchGuildChat(currentUserRef.current.email));
         }
       }, 10000);
       return () => clearInterval(interval);
@@ -85,7 +91,7 @@ const GuildChat: React.FC = () => {
 
             return (
               <motion.div
-                key={idx}
+                key={msg.createdAt + msg.email + idx}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex gap-3 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}

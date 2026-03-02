@@ -27,8 +27,6 @@ const GuildSettingsModal: React.FC<GuildSettingsModalProps> = ({ isOpen, onClose
   const [questTarget, setQuestTarget] = useState(10);
   const [questCategory, setQuestCategory] = useState('General');
 
-  if (!isOpen || !guild || !currentUser) return null;
-
   useEffect(() => {
     if (guild) {
         setDescription(guild.description || '');
@@ -36,6 +34,8 @@ const GuildSettingsModal: React.FC<GuildSettingsModalProps> = ({ isOpen, onClose
         setEmblem(guild.emblem || '🛡️');
     }
   }, [guild]);
+
+  if (!isOpen || !guild || !currentUser) return null;
 
   const handleSaveSettings = async () => {
     await dispatch(updateGuildSettings({

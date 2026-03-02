@@ -120,7 +120,7 @@ const AnimatedRoutes: React.FC = () => {
                         <Route path="/calendar" element={<ProtectedRoute><ErrorBoundary><Calendar /></ErrorBoundary></ProtectedRoute>} />
                         <Route path="/leaderboard" element={<ProtectedRoute><ErrorBoundary><Leaderboard /></ErrorBoundary></ProtectedRoute>} />
                         <Route path="/guild" element={<ProtectedRoute><ErrorBoundary><GuildWrapper /></ErrorBoundary></ProtectedRoute>} />
-                        {/* <Route path="/guilds" element={<ProtectedRoute><ErrorBoundary><GuildsList /></ErrorBoundary></ProtectedRoute>} /> */}
+                        <Route path="/guilds" element={<ProtectedRoute><ErrorBoundary><GuildsList /></ErrorBoundary></ProtectedRoute>} />
                         <Route path="/admin" element={<AdminRoute><ErrorBoundary><Admin /></ErrorBoundary></AdminRoute>} />
                         <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
                     </Routes>
