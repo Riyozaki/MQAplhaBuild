@@ -266,7 +266,10 @@ export interface GuildData {
   memberCount: number;
   maxMembers: number;
   myRole: GuildRole | null;
-  settings: any;
+  settings: {
+    isOpen: boolean;
+    [key: string]: any;
+  };
 }
 
 export interface GuildSummary {

@@ -14,15 +14,17 @@ const GuildChat: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
-    if (currentUser?.email) {
+    if (currentUser?.email && currentUser?.guildId) {
       dispatch(fetchGuildChat(currentUser.email));
       // Optional: Poll for new messages every 10 seconds
       const interval = setInterval(() => {
-        dispatch(fetchGuildChat(currentUser.email));
+        if (currentUser?.guildId) {
+            dispatch(fetchGuildChat(currentUser.email));
+        }
       }, 10000);
       return () => clearInterval(interval);
     }
-  }, [dispatch, currentUser]);
+  }, [dispatch, currentUser?.email, currentUser?.guildId]);
 
   useEffect(() => {
     scrollToBottom();

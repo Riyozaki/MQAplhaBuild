@@ -1,6 +1,10 @@
 import { UserProfile, GuildData, GuildSummary, GuildLeaderboardEntry, GuildMessage } from '../types';
-import { store } from '../store';
-import { setPendingSyncCount } from '../store/userSlice';
+
+let storeRef: any = null;
+
+export const setStoreRef = (store: any) => {
+    storeRef = store;
+};
 
 // ...
 
@@ -10,6 +14,12 @@ import { setPendingSyncCount } from '../store/userSlice';
 // Deploy → New deployment → скопировать URL
 // ═══════════════════════════════════════════════════════════
 export const API_URL = import.meta.env.VITE_API_URL || 'https://script.google.com/macros/s/AKfycbyibXkrpjTcaGb23jx_WosICwTx3jL8RYGYayNh3ypi6Vaz2nRUaKVTuhb1oEAFELgTJw/exec';
+
+// ВАЖНО: Content-Type 'text/plain;charset=utf-8' используется намеренно как хак для Google Apps Script (GAS), 
+// чтобы избежать отправки CORS-preflight запросов (OPTIONS), которые GAS обрабатывает некорректно.
+// При миграции бэкенда с GAS на полноценный сервер (например, Node.js/Express), 
+// обязательно измените это на 'application/json'.
+const CONTENT_TYPE = 'text/plain;charset=utf-8';
 
 const TIMEOUT_MS = 25000;
 const OFFLINE_QUEUE_KEY = 'motiva_offline_queue';
@@ -157,7 +167,7 @@ const saveToQueue = (action: string, data: any) => {
         }
 
         localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
-        store.dispatch(setPendingSyncCount(queue.length));
+        storeRef?.dispatch({ type: 'user/setPendingSyncCount', payload: queue.length });
         console.log(`[Offline] Queue size: ${queue.length}. Added: ${action}`);
     } catch (e) {
         console.error("Failed to save offline request", e);
@@ -171,12 +181,12 @@ export const flushOfflineQueue = async () => {
         
         let queue: OfflineRequest[] = JSON.parse(queueStr);
         if (queue.length === 0) {
-            store.dispatch(setPendingSyncCount(0));
+            storeRef?.dispatch({ type: 'user/setPendingSyncCount', payload: 0 });
             return;
         }
 
         console.log(`[Offline] Flushing ${queue.length} requests...`);
-        store.dispatch(setPendingSyncCount(queue.length));
+        storeRef?.dispatch({ type: 'user/setPendingSyncCount', payload: queue.length });
         
         queue.sort((a, b) => {
             if (a.priority !== b.priority) return a.priority - b.priority;
@@ -225,7 +235,7 @@ export const flushOfflineQueue = async () => {
             localStorage.removeItem(OFFLINE_QUEUE_KEY);
         }
         
-        store.dispatch(setPendingSyncCount(newQueue.length));
+        storeRef?.dispatch({ type: 'user/setPendingSyncCount', payload: newQueue.length });
 
     } catch (e) {
         console.error("Error flushing offline queue", e);
@@ -250,11 +260,7 @@ const request = async <T = any>(action: string, data: any = {}, method: 'POST' |
         const options: RequestInit = {
             method,
             headers: {
-                // ВАЖНО: Content-Type 'text/plain;charset=utf-8' используется намеренно как хак для Google Apps Script (GAS), 
-                // чтобы избежать отправки CORS-preflight запросов (OPTIONS), которые GAS обрабатывает некорректно.
-                // При миграции бэкенда с GAS на полноценный сервер (например, Node.js/Express), 
-                // обязательно измените это на 'application/json'.
-                'Content-Type': 'text/plain;charset=utf-8', 
+                'Content-Type': CONTENT_TYPE, 
             },
             signal: controller.signal,
         };

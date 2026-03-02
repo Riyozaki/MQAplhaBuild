@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { api } from '../services/api';
 import { GuildData, GuildSummary, GuildLeaderboardEntry, GuildMessage } from '../types';
-import { RootState } from './index';
 import { toast } from 'react-toastify';
 
 interface GuildState {
@@ -290,8 +289,16 @@ const guildSlice = createSlice({
         state.guildsList = action.payload;
       })
       // Fetch Leaderboard
+      .addCase(fetchGuildLeaderboard.pending, (state) => {
+        state.status = 'loading';
+      })
       .addCase(fetchGuildLeaderboard.fulfilled, (state, action) => {
+        state.status = 'idle';
         state.guildLeaderboard = action.payload;
+      })
+      .addCase(fetchGuildLeaderboard.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message || 'Failed to fetch leaderboard';
       })
       // Fetch Chat
       .addCase(fetchGuildChat.fulfilled, (state, action) => {

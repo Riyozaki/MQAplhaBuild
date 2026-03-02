@@ -14,9 +14,6 @@ import LandingPage from '../components/LandingPage';
 import DashboardView from '../components/dashboard/DashboardView';
 import CampaignView from '../components/dashboard/CampaignView';
 
-const Guild = React.lazy(() => import('./Guild'));
-const GuildsList = React.lazy(() => import('./GuildsList'));
-
 const HomeSkeleton = () => (
     <div className="animate-pulse space-y-8 max-w-7xl mx-auto w-full">
         {/* Hero */}
@@ -53,7 +50,7 @@ const StoryDashboard: React.FC = () => {
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [questMultiplier, setQuestMultiplier] = useState(1);
   const [isBossModalOpen, setIsBossModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'dashboard' | 'campaign' | 'guild'>('dashboard');
+  const [viewMode, setViewMode] = useState<'dashboard' | 'campaign'>('dashboard');
 
   useEffect(() => {
     if (status === 'idle') {
@@ -68,7 +65,6 @@ const StoryDashboard: React.FC = () => {
                   <div className="bg-slate-900/80 backdrop-blur rounded-2xl p-1 flex gap-1 border border-slate-700/50 shadow-xl opacity-80 pointer-events-none">
                       <div className="px-6 py-2 rounded-xl bg-slate-800 text-slate-500 flex items-center gap-2"><HomeIcon size={16} /></div>
                       <div className="px-6 py-2 rounded-xl text-slate-600 flex items-center gap-2"><MapIcon size={16} /></div>
-                      <div className="px-6 py-2 rounded-xl text-slate-600 flex items-center gap-2"><Shield size={16} /></div>
                   </div>
               </div>
             <HomeSkeleton />
@@ -108,12 +104,6 @@ const StoryDashboard: React.FC = () => {
               >
                   <MapIcon size={16} /> Кампания
               </button>
-              <button 
-                onClick={() => setViewMode('guild')}
-                className={`px-6 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all ${viewMode === 'guild' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-              >
-                  <Shield size={16} /> Гильдия
-              </button>
           </div>
       </div>
 
@@ -143,14 +133,6 @@ const StoryDashboard: React.FC = () => {
                     isDayComplete={user.campaign?.isDayComplete}
                     user={user}
                   />
-              </motion.div>
-          )}
-
-          {viewMode === 'guild' && (
-              <motion.div key="guild" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}>
-                  <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-500" size={32} /></div>}>
-                      {user.guildId ? <Guild /> : <GuildsList />}
-                  </Suspense>
               </motion.div>
           )}
       </AnimatePresence>

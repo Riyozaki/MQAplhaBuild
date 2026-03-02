@@ -11,6 +11,7 @@ import GuildChat from '../components/GuildChat';
 import GuildSettingsModal from '../components/GuildSettingsModal';
 import GuildQuestModal from '../components/GuildQuestModal';
 import { GuildQuest } from '../types';
+import Modal from 'react-modal';
 
 const Guild: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -21,6 +22,9 @@ const Guild: React.FC = () => {
   const [copiedId, setCopiedId] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [selectedQuest, setSelectedQuest] = useState<GuildQuest | null>(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showDonateModal, setShowDonateModal] = useState(false);
+  const [donateAmount, setDonateAmount] = useState('');
 
   useEffect(() => {
     if (currentUser?.email) {
@@ -28,15 +32,20 @@ const Guild: React.FC = () => {
     }
   }, [dispatch, currentUser]);
 
-  const handleLeave = async () => {
+  const handleLeave = () => {
     if (!currentUser?.email) return;
     if (guild?.myRole === 'leader') {
       toast.error('Передайте лидерство перед выходом!');
       return;
     }
-    if (window.confirm("Вы уверены, что хотите покинуть гильдию? Вы потеряете все бонусы.")) {
-      await dispatch(leaveGuild(currentUser.email));
-    }
+    setShowLeaveConfirm(true);
+  };
+
+  const confirmLeave = async () => {
+    if (!currentUser?.email) return;
+    await dispatch(leaveGuild(currentUser.email));
+    setShowLeaveConfirm(false);
+    navigate('/');
   };
 
   const getTimeRemaining = (expiresAt: string | undefined) => {
@@ -58,18 +67,27 @@ const Guild: React.FC = () => {
     }
   };
 
-  const handleDonate = async () => {
+  const handleDonate = () => {
+    setShowDonateModal(true);
+    setDonateAmount('');
+  };
+
+  const confirmDonate = async () => {
     if (!currentUser?.email) return;
-    const amount = prompt("Сколько монет вы хотите пожертвовать в казну?");
-    if (amount && !isNaN(Number(amount))) {
-        const val = Number(amount);
-        if (val <= 0) return;
-        if (currentUser.coins < val) {
-            toast.error("Недостаточно монет!");
-            return;
-        }
-        await dispatch(guildDonate({ email: currentUser.email, amount: val }));
+    const val = Number(donateAmount);
+    
+    if (!val || isNaN(val) || val <= 0) {
+        toast.error("Введите корректную сумму!");
+        return;
     }
+    if (currentUser.coins < val) {
+        toast.error("Недостаточно монет!");
+        return;
+    }
+    
+    await dispatch(guildDonate({ email: currentUser.email, amount: val }));
+    setShowDonateModal(false);
+    setDonateAmount('');
   };
 
   if (status === 'loading') {
@@ -366,6 +384,79 @@ const Guild: React.FC = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Leave Confirmation Modal */}
+      <Modal
+        isOpen={showLeaveConfirm}
+        onRequestClose={() => setShowLeaveConfirm(false)}
+        className="outline-none focus:outline-none"
+        overlayClassName="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+        ariaHideApp={false}
+      >
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+          <h3 className="text-xl font-bold text-white mb-2">Покинуть гильдию?</h3>
+          <p className="text-slate-400 mb-6">
+            Вы потеряете доступ к чату, бонусам и заданиям гильдии. Это действие нельзя отменить.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowLeaveConfirm(false)}
+              className="flex-1 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition-colors"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={confirmLeave}
+              className="flex-1 py-2 rounded-xl bg-red-600/20 text-red-400 border border-red-600/30 font-bold hover:bg-red-600/30 transition-colors"
+            >
+              Покинуть
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Donate Modal */}
+      <Modal
+        isOpen={showDonateModal}
+        onRequestClose={() => setShowDonateModal(false)}
+        className="outline-none focus:outline-none"
+        overlayClassName="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+        ariaHideApp={false}
+      >
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+            <Coins className="text-emerald-400" /> Пожертвование
+          </h3>
+          <div className="mb-6">
+            <label className="block text-slate-400 text-sm mb-2">Сумма пожертвования</label>
+            <input
+              type="number"
+              value={donateAmount}
+              onChange={(e) => setDonateAmount(e.target.value)}
+              placeholder="0"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-lg"
+              autoFocus
+            />
+            <div className="text-right text-xs text-slate-500 mt-1">
+              Ваш баланс: {currentUser?.coins || 0}
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowDonateModal(false)}
+              className="flex-1 py-2 rounded-xl bg-slate-800 text-slate-300 font-bold hover:bg-slate-700 transition-colors"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={confirmDonate}
+              className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors shadow-lg shadow-emerald-900/20"
+            >
+              Пожертвовать
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

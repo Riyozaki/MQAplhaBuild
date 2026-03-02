@@ -37,10 +37,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // 1. Initial Load from LocalStorage
   useEffect(() => {
     const init = async () => {
-      await dispatch(initAuth());
-      setLoading(false);
+      try {
+        await dispatch(initAuth());
+      } catch (e) {
+        console.error('Init auth failed:', e);
+      } finally {
+        setLoading(false);
+      }
     };
-    init();
+    
+    // Safety timeout in case initAuth hangs
+    const timeout = setTimeout(() => setLoading(false), 10000);
+    
+    init().finally(() => clearTimeout(timeout));
   }, [dispatch]);
 
   const trackSessionEnd = (reason: 'logout' | 'timeout') => {

@@ -29,6 +29,14 @@ const GuildSettingsModal: React.FC<GuildSettingsModalProps> = ({ isOpen, onClose
 
   if (!isOpen || !guild || !currentUser) return null;
 
+  useEffect(() => {
+    if (guild) {
+        setDescription(guild.description || '');
+        setIsOpenGuild(guild.settings?.isOpen ?? true);
+        setEmblem(guild.emblem || '🛡️');
+    }
+  }, [guild]);
+
   const handleSaveSettings = async () => {
     await dispatch(updateGuildSettings({
         email: currentUser.email,

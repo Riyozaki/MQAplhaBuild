@@ -11,7 +11,7 @@ import { CALENDAR_CONFIG } from './rewardsSlice';
 
 // Import actions from other slices for extraReducers
 import { completeQuestAction } from './questsSlice';
-import { createGuild, guildDonate, leaveGuild, joinGuild, fetchMyGuild } from './guildSlice';
+import { createGuild, guildDonate, leaveGuild, joinGuild, fetchMyGuild, contributeGuildQuest } from './guildSlice';
 
 const STORAGE_KEY_EMAIL = 'motiva_user_email';
 
@@ -418,6 +418,14 @@ export const registerLocal = createAsyncThunk(
 
 export const logoutLocal = createAsyncThunk('user/logout', async () => {
     localStorage.removeItem(STORAGE_KEY_EMAIL);
+    
+    // Clear quest progress to prevent data leak
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('quest_progress_') || key.startsWith('quest_hints_')) {
+            localStorage.removeItem(key);
+        }
+    });
+
     api.logout(); // v3: очищаем токен сессии
     return null;
 });
@@ -1051,7 +1059,13 @@ const userSlice = createSlice({
           if (state.currentUser) {
               state.currentUser.guildId = action.meta.arg.guildId;
               state.currentUser.guildRole = 'member';
+              // We don't have the name yet, but we can try to fetch it or wait for fetchMyGuild
+              // Ideally, joinGuild should return the guild name, but for now we rely on fetchMyGuild
           }
+      })
+      .addCase(createGuild.rejected, (state) => {
+          // Revert optimistic update if needed, or just set status
+          state.status = 'failed';
       })
       .addCase(leaveGuild.fulfilled, (state) => {
           if (state.currentUser) {
@@ -1059,6 +1073,9 @@ const userSlice = createSlice({
               state.currentUser.guildName = undefined;
               state.currentUser.guildRole = undefined;
           }
+      })
+      .addCase(contributeGuildQuest.fulfilled, (state, action) => {
+          // Optional: Update user stats if contribution gives rewards directly
       })
       .addCase(fetchMyGuild.fulfilled, (state, action) => {
           if (state.currentUser && !action.payload) {

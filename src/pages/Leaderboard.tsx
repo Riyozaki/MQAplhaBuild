@@ -13,9 +13,13 @@ const Leaderboard: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const currentUser = useSelector((state: RootState) => state.user.currentUser);
   const { leaderboard, leaderboardLoading, leaderboardError, leaderboardType, lastFetched } = useSelector((state: RootState) => state.social);
-  const { guildLeaderboard } = useSelector((state: RootState) => state.guild);
+  const { guildLeaderboard, status: guildStatus, error: guildError } = useSelector((state: RootState) => state.guild);
   const [activeTab, setActiveTab] = useState<TabType>('alltime');
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const isLoading = activeTab === 'guilds' ? guildStatus === 'loading' : leaderboardLoading;
+  const error = activeTab === 'guilds' ? guildError : leaderboardError;
+  const data = activeTab === 'guilds' ? guildLeaderboard : leaderboard;
 
   // Fetch leaderboard on mount & tab change
   useEffect(() => {
@@ -53,7 +57,7 @@ const Leaderboard: React.FC = () => {
     level: currentUser.level,
     xp: activeTab === 'weekly'
       ? (currentUser.weeklyXp || 0)
-      : (currentUser.currentXp || 0) + ((currentUser.level || 1) * 1000),
+      : (currentUser.totalXpEarned || (currentUser.currentXp || 0) + ((currentUser.level || 1) * 1000)),
     weeklyXp: currentUser.weeklyXp || 0,
     totalQuestsCompleted: currentUser.totalQuestsCompleted || currentUser.completedQuests || 0,
     streakDays: currentUser.streakDays || 0,
@@ -168,7 +172,7 @@ const Leaderboard: React.FC = () => {
 
         <button
           onClick={handleRefresh}
-          disabled={leaderboardLoading}
+          disabled={isLoading}
           className="p-2.5 rounded-xl bg-slate-800/50 border border-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all disabled:opacity-50 shrink-0"
           title="Обновить"
         >
@@ -210,7 +214,7 @@ const Leaderboard: React.FC = () => {
       )}
 
       {/* Loading State */}
-      {leaderboardLoading && leaderboard.length === 0 && activeTab !== 'guilds' && (
+      {isLoading && data.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Loader2 className="h-8 w-8 text-purple-400 animate-spin" />
           <p className="text-slate-400 text-sm">Загружаем таблицу героев...</p>
@@ -218,12 +222,12 @@ const Leaderboard: React.FC = () => {
       )}
 
       {/* Error State */}
-      {leaderboardError && leaderboard.length === 0 && !leaderboardLoading && activeTab !== 'guilds' && (
+      {error && data.length === 0 && !isLoading && (
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <WifiOff className="h-8 w-8 text-slate-500" />
           <p className="text-slate-400 text-sm text-center">
             Не удалось загрузить данные.<br />
-            <span className="text-xs text-slate-500">{leaderboardError}</span>
+            <span className="text-xs text-slate-500">{error}</span>
           </p>
           <button
             onClick={handleRefresh}
@@ -235,7 +239,7 @@ const Leaderboard: React.FC = () => {
       )}
 
       {/* Podium — Top 3 */}
-      {!leaderboardLoading && (activeTab === 'guilds' ? guildLeaderboard.length : sortedUsers.length) >= 3 && (
+      {!isLoading && (activeTab === 'guilds' ? guildLeaderboard.length : sortedUsers.length) >= 3 && (
         <div className="flex items-end justify-center gap-3 pt-4 pb-2">
           {podiumOrder.map((originalIndex, visualIndex) => {
             const item = podium[originalIndex];
@@ -296,7 +300,7 @@ const Leaderboard: React.FC = () => {
       )}
 
       {/* Main Table */}
-      {!leaderboardLoading && (activeTab === 'guilds' ? guildLeaderboard.length : sortedUsers.length) > 0 && (
+      {!isLoading && (activeTab === 'guilds' ? guildLeaderboard.length : sortedUsers.length) > 0 && (
         <div className="glass-panel rounded-2xl overflow-hidden border border-slate-700/50">
           {/* Table Header */}
           <div className="bg-slate-900/80 px-4 py-3 grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-700/50">
@@ -414,7 +418,7 @@ const Leaderboard: React.FC = () => {
       {lastFetched && (
         <p className="text-center text-xs text-slate-600">
           Обновлено: {new Date(lastFetched).toLocaleTimeString('ru-RU')}
-          {leaderboardLoading && <Loader2 size={10} className="inline ml-1 animate-spin" />}
+          {isLoading && <Loader2 size={10} className="inline ml-1 animate-spin" />}
         </p>
       )}
     </div>

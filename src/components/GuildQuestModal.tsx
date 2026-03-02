@@ -21,6 +21,12 @@ const GuildQuestModal: React.FC<GuildQuestModalProps> = ({ quest, onClose }) => 
   const handleContribute = async () => {
     if (amount <= 0) return;
     
+    const maxContribution = quest.targetValue - quest.currentValue;
+    if (amount > maxContribution) {
+        // This should be prevented by input max, but double check
+        return;
+    }
+
     await dispatch(contributeGuildQuest({
         email: currentUser.email,
         questId: quest.questId,

@@ -36,7 +36,7 @@ const NotFound = React.lazy(() => import('./pages/NotFound'));
 
 // Loading Fallback
 const PageLoader = () => (
-  <div className="flex h-96 items-center justify-center text-primary-400">
+  <div className="flex h-96 items-center justify-center text-indigo-400">
     <Loader2 className="animate-spin mr-2" /> Загрузка магии...
   </div>
 );
@@ -92,6 +92,12 @@ const AdminRoute: React.FC<{ children: React.ReactElement }> = ({ children }) =>
   return children;
 };
 
+// Guild Wrapper to handle routing logic
+const GuildWrapper = () => {
+  const { user } = useAuth();
+  return user?.guildId ? <Guild /> : <GuildsList />;
+};
+
 const AnimatedRoutes: React.FC = () => {
     const location = useLocation();
     
@@ -113,8 +119,8 @@ const AnimatedRoutes: React.FC = () => {
                         <Route path="/rewards" element={<ProtectedRoute><ErrorBoundary><Rewards /></ErrorBoundary></ProtectedRoute>} />
                         <Route path="/calendar" element={<ProtectedRoute><ErrorBoundary><Calendar /></ErrorBoundary></ProtectedRoute>} />
                         <Route path="/leaderboard" element={<ProtectedRoute><ErrorBoundary><Leaderboard /></ErrorBoundary></ProtectedRoute>} />
-                        <Route path="/guild" element={<ProtectedRoute><ErrorBoundary><Guild /></ErrorBoundary></ProtectedRoute>} />
-                        <Route path="/guilds" element={<ProtectedRoute><ErrorBoundary><GuildsList /></ErrorBoundary></ProtectedRoute>} />
+                        <Route path="/guild" element={<ProtectedRoute><ErrorBoundary><GuildWrapper /></ErrorBoundary></ProtectedRoute>} />
+                        {/* <Route path="/guilds" element={<ProtectedRoute><ErrorBoundary><GuildsList /></ErrorBoundary></ProtectedRoute>} /> */}
                         <Route path="/admin" element={<AdminRoute><ErrorBoundary><Admin /></ErrorBoundary></AdminRoute>} />
                         <Route path="*" element={<ErrorBoundary><NotFound /></ErrorBoundary>} />
                     </Routes>
