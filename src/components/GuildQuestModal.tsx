@@ -74,7 +74,10 @@ const GuildQuestModal: React.FC<GuildQuestModalProps> = ({ quest, onClose }) => 
                 <input 
                     type="number" 
                     value={amount}
-                    onChange={(e) => setAmount(Math.max(1, Number(e.target.value)))}
+                    onChange={(e) => {
+                        const remaining = quest.targetValue - quest.currentValue;
+                        setAmount(Math.max(1, Math.min(remaining, Number(e.target.value))));
+                    }}
                     className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none font-bold text-center"
                     min="1"
                 />

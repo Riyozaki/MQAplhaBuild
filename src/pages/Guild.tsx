@@ -30,9 +30,23 @@ const Guild: React.FC = () => {
 
   const handleLeave = async () => {
     if (!currentUser?.email) return;
+    if (guild?.myRole === 'leader') {
+      toast.error('Передайте лидерство перед выходом!');
+      return;
+    }
     if (window.confirm("Вы уверены, что хотите покинуть гильдию? Вы потеряете все бонусы.")) {
       await dispatch(leaveGuild(currentUser.email));
     }
+  };
+
+  const getTimeRemaining = (expiresAt: string | undefined) => {
+    if (!expiresAt) return 'Неизвестно';
+    const diff = new Date(expiresAt).getTime() - Date.now();
+    if (isNaN(diff)) return 'Неизвестно';
+    if (diff <= 0) return 'Истёк';
+    const hours = Math.floor(diff / 3600000);
+    if (hours < 24) return `Истекает через ${hours}ч`;
+    return `Истекает через ${Math.floor(hours / 24)}д`;
   };
 
   const copyGuildId = () => {
@@ -303,7 +317,7 @@ const Guild: React.FC = () => {
                         <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
                           <span className="px-2 py-0.5 bg-slate-800 rounded text-slate-400">{quest.category}</span>
                           <span>•</span>
-                          <span>Истекает через 2 дня</span>
+                          <span>{getTimeRemaining(quest.expiresAt)}</span>
                         </div>
                       </div>
                       <div className="text-right">

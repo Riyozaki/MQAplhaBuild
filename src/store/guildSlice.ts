@@ -59,13 +59,18 @@ export const fetchGuildChat = createAsyncThunk(
 export const createGuild = createAsyncThunk(
   'guild/createGuild',
   async (payload: { email: string; name: string; description: string; emblem: string; isOpen: boolean }, { dispatch }) => {
-    const response = await api.createGuild(payload.email, payload.name, payload.description, payload.emblem, payload.isOpen);
-    if (response.success) {
-        toast.success(response.message);
-        dispatch(fetchMyGuild(payload.email));
-        return response;
-    } else {
-        throw new Error(response.message || 'Failed to create guild');
+    try {
+      const response = await api.createGuild(payload.email, payload.name, payload.description, payload.emblem, payload.isOpen);
+      if (response.success) {
+          // Toast is handled in the component
+          dispatch(fetchMyGuild(payload.email));
+          return response;
+      } else {
+          throw new Error(response.message || 'Failed to create guild');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create guild');
+      throw error;
     }
   }
 );
@@ -73,93 +78,174 @@ export const createGuild = createAsyncThunk(
 export const joinGuild = createAsyncThunk(
   'guild/joinGuild',
   async (payload: { email: string; guildId: string }, { dispatch }) => {
-    const response = await api.joinGuild(payload.email, payload.guildId);
-    toast.success(response.message);
-    dispatch(fetchMyGuild(payload.email));
-    return response;
+    try {
+      const response = await api.joinGuild(payload.email, payload.guildId);
+      if (response.success) {
+          toast.success(response.message);
+          dispatch(fetchMyGuild(payload.email));
+          return response;
+      } else {
+          throw new Error(response.message || 'Failed to join guild');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to join guild');
+      throw error;
+    }
   }
 );
 
 export const leaveGuild = createAsyncThunk(
   'guild/leaveGuild',
   async (email: string, { dispatch }) => {
-    const response = await api.leaveGuild(email);
-    toast.info(response.message);
-    return response;
+    try {
+      const response = await api.leaveGuild(email);
+      if (response.success) {
+          toast.info(response.message);
+          return response;
+      } else {
+          throw new Error(response.message || 'Failed to leave guild');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to leave guild');
+      throw error;
+    }
   }
 );
 
 export const transferLeadership = createAsyncThunk(
   'guild/transferLeadership',
   async (payload: { email: string; newLeaderEmail: string }, { dispatch }) => {
-    const response = await api.transferLeadership(payload.email, payload.newLeaderEmail);
-    toast.success(response.message);
-    dispatch(fetchMyGuild(payload.email));
-    return response;
+    try {
+      const response = await api.transferLeadership(payload.email, payload.newLeaderEmail);
+      if (response.success) {
+          toast.success(response.message);
+          dispatch(fetchMyGuild(payload.email));
+          return response;
+      } else {
+          throw new Error(response.message || 'Failed to transfer leadership');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to transfer leadership');
+      throw error;
+    }
   }
 );
 
 export const kickMember = createAsyncThunk(
   'guild/kickMember',
   async (payload: { email: string; targetEmail: string }, { dispatch }) => {
-    const response = await api.kickMember(payload.email, payload.targetEmail);
-    toast.info(response.message);
-    dispatch(fetchMyGuild(payload.email));
-    return response;
+    try {
+      const response = await api.kickMember(payload.email, payload.targetEmail);
+      if (response.success) {
+          toast.info(response.message);
+          dispatch(fetchMyGuild(payload.email));
+          return response;
+      } else {
+          throw new Error(response.message || 'Failed to kick member');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to kick member');
+      throw error;
+    }
   }
 );
 
 export const setMemberRole = createAsyncThunk(
   'guild/setMemberRole',
   async (payload: { email: string; targetEmail: string; newRole: 'member' | 'officer' }, { dispatch }) => {
-    const response = await api.setMemberRole(payload.email, payload.targetEmail, payload.newRole);
-    toast.success(response.message);
-    dispatch(fetchMyGuild(payload.email));
-    return response;
+    try {
+      const response = await api.setMemberRole(payload.email, payload.targetEmail, payload.newRole);
+      if (response.success) {
+          toast.success(response.message);
+          dispatch(fetchMyGuild(payload.email));
+          return response;
+      } else {
+          throw new Error(response.message || 'Failed to set member role');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to set member role');
+      throw error;
+    }
   }
 );
 
 export const guildDonate = createAsyncThunk(
   'guild/donate',
   async (payload: { email: string; amount: number }, { dispatch }) => {
-    const response = await api.guildDonate(payload.email, payload.amount);
-    toast.success(response.message);
-    dispatch(fetchMyGuild(payload.email));
-    return response;
+    try {
+      const response = await api.guildDonate(payload.email, payload.amount);
+      if (response.success) {
+          toast.success(response.message);
+          dispatch(fetchMyGuild(payload.email));
+          return response;
+      } else {
+          throw new Error(response.message || 'Failed to donate');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to donate');
+      throw error;
+    }
   }
 );
 
 export const updateGuildSettings = createAsyncThunk(
   'guild/updateSettings',
   async (payload: { email: string; settings: { description?: string; emblem?: string; isOpen?: boolean } }, { dispatch }) => {
-    const response = await api.updateGuildSettings(payload.email, payload.settings);
-    toast.success('Настройки гильдии обновлены');
-    dispatch(fetchMyGuild(payload.email));
-    return response;
+    try {
+      const response = await api.updateGuildSettings(payload.email, payload.settings);
+      if (response.success) {
+          toast.success('Настройки гильдии обновлены');
+          dispatch(fetchMyGuild(payload.email));
+          return response;
+      } else {
+          throw new Error('Failed to update settings');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update settings');
+      throw error;
+    }
   }
 );
 
 export const createGuildQuest = createAsyncThunk(
   'guild/createQuest',
   async (payload: { email: string; questName: string; targetValue: number; questType: string; category: string; rewards: any }, { dispatch }) => {
-    const response = await api.createGuildQuest(payload.email, payload.questName, payload.targetValue, payload.questType, payload.category, payload.rewards);
-    toast.success('Гильдейский квест создан!');
-    dispatch(fetchMyGuild(payload.email));
-    return response;
+    try {
+      const response = await api.createGuildQuest(payload.email, payload.questName, payload.targetValue, payload.questType, payload.category, payload.rewards);
+      if (response.success) {
+          toast.success('Гильдейский квест создан!');
+          dispatch(fetchMyGuild(payload.email));
+          return response;
+      } else {
+          throw new Error('Failed to create quest');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create quest');
+      throw error;
+    }
   }
 );
 
 export const contributeGuildQuest = createAsyncThunk(
   'guild/contributeQuest',
   async (payload: { email: string; questId: string; amount: number }, { dispatch }) => {
-    const response = await api.contributeGuildQuest(payload.email, payload.questId, payload.amount);
-    if (response.completed) {
-        toast.success('Квест завершен! Награды распределены.');
-    } else {
-        toast.info('Вклад внесен!');
+    try {
+      const response = await api.contributeGuildQuest(payload.email, payload.questId, payload.amount);
+      if (response.success) {
+          if (response.completed) {
+              toast.success('Квест завершен! Награды распределены.');
+          } else {
+              toast.info('Вклад внесен!');
+          }
+          dispatch(fetchMyGuild(payload.email));
+          return response;
+      } else {
+          throw new Error(response.message || 'Failed to contribute');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to contribute');
+      throw error;
     }
-    dispatch(fetchMyGuild(payload.email));
-    return response;
   }
 );
 

@@ -39,7 +39,7 @@ const Admin: React.FC = () => {
   };
 
   // --- Charts Styling ---
-  const chartOptions: ChartOptions<'bar' | 'scatter'> = {
+  const chartOptions: ChartOptions<'bar' | 'scatter'> = React.useMemo(() => ({
     responsive: true,
     plugins: {
         legend: { labels: { color: '#94a3b8', font: { family: '"Exo 2"' } } },
@@ -54,10 +54,10 @@ const Admin: React.FC = () => {
             ticks: { color: '#64748b' }
         }
     }
-  };
+  }), []);
 
   // 1. Quests vs Time (Bar)
-  const activityData: ChartData<'bar'> = {
+  const activityData: ChartData<'bar'> = React.useMemo(() => ({
     labels: studentData.map(s => anonymizeName(s.studentName, s.studentId)),
     datasets: [
       {
@@ -77,10 +77,10 @@ const Admin: React.FC = () => {
         borderRadius: 4,
       }
     ],
-  };
+  }), [studentData]);
 
   // 2. Correlation
-  const correlationData: ChartData<'scatter'> = {
+  const correlationData: ChartData<'scatter'> = React.useMemo(() => ({
     datasets: [{
       label: 'Успеваемость vs Мотивация',
       data: studentData.map(s => ({
@@ -91,7 +91,7 @@ const Admin: React.FC = () => {
       pointRadius: 6,
       pointHoverRadius: 8
     }]
-  };
+  }), [studentData]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">

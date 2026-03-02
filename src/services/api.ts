@@ -508,8 +508,8 @@ export const api = {
         return await request<{success: true, donated: number, newBalance: number, message: string}>('guildDonate', { email, amount });
     },
 
-    updateGuildSettings: async (email: string, settings: { description?: string, emblem?: string, isOpen?: boolean, settings?: any }) => {
-        return await request<{success: true}>('updateGuildSettings', { email, ...settings });
+    updateGuildSettings: async (email: string, settings: { description?: string, emblem?: string, isOpen?: boolean }) => {
+        return await request<{success: true}>('updateGuildSettings', { email, settings });
     },
 
     createGuildQuest: async (email: string, questName: string, targetValue: number, questType: string, category: string, rewards: any) => {

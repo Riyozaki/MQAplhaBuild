@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, Sword, User, ShoppingBag, Home, LogIn, LogOut, BarChart2, Clock, ShieldAlert, Zap, CalendarDays } from 'lucide-react';
+import { Menu, X, Sword, User, ShoppingBag, Home, LogIn, LogOut, BarChart2, Clock, ShieldAlert, Zap, CalendarDays, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 
@@ -30,6 +30,7 @@ const Navbar: React.FC = () => {
     { path: '/quests', label: 'Миссии', icon: Sword, public: false },
     { path: '/calendar', label: 'Календарь', icon: CalendarDays, public: false },
     { path: '/rewards', label: 'Лавка', icon: ShoppingBag, public: false },
+    { path: '/guild', label: 'Гильдия', icon: Shield, public: false },
     { path: '/leaderboard', label: 'Зал Славы', icon: BarChart2, public: false },
     { path: '/profile', label: 'Герой', icon: User, public: false },
   ];

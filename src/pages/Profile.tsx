@@ -121,7 +121,7 @@ const Profile: React.FC = () => {
       return theme ? theme.color : '#8b5cf6';
   }, [user?.themeColor]);
 
-  const commonOptions: ChartOptions<'bar' | 'line'> = {
+  const commonOptions: ChartOptions<'bar' | 'line'> = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -146,9 +146,9 @@ const Profile: React.FC = () => {
             ticks: { color: '#64748b', precision: 0 }
         }
     }
-  };
+  }), [primaryColorHex]);
 
-  const questsChartData: ChartData<'bar'> = {
+  const questsChartData: ChartData<'bar'> = useMemo(() => ({
       labels: statsData.labels,
       datasets: [{
           label: 'Выполнено квестов',
@@ -159,9 +159,9 @@ const Profile: React.FC = () => {
           borderRadius: 6,
           hoverBackgroundColor: '#ffffff'
       }]
-  };
+  }), [statsData, primaryColorHex]);
 
-  const coinsChartData: ChartData<'line'> = {
+  const coinsChartData: ChartData<'line'> = useMemo(() => ({
       labels: statsData.labels,
       datasets: [{
           label: 'Заработано золота',
@@ -174,7 +174,7 @@ const Profile: React.FC = () => {
           tension: 0.4,
           fill: true
       }]
-  };
+  }), [statsData]);
 
 
   if (!user) return null;

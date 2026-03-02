@@ -252,9 +252,10 @@ const GuildSettingsModal: React.FC<GuildSettingsModalProps> = ({ isOpen, onClose
                         {quest.currentValue} / {quest.targetValue} • {quest.category}
                       </div>
                     </div>
-                    <button className="text-slate-500 hover:text-red-400 transition-colors">
+                    {/* Delete button hidden until API implementation */}
+                    {/* <button className="text-slate-500 hover:text-red-400 transition-colors">
                       <Trash2 size={16} />
-                    </button>
+                    </button> */}
                   </div>
                 ))}
               </div>

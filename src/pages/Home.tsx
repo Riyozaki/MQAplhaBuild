@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
@@ -9,12 +9,13 @@ import QuestModal from '../components/QuestModal';
 import BossBattleModal from '../components/BossBattleModal';
 import { Quest } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home as HomeIcon, Map as MapIcon, Shield } from 'lucide-react';
+import { Home as HomeIcon, Map as MapIcon, Shield, Loader2 } from 'lucide-react';
 import LandingPage from '../components/LandingPage';
 import DashboardView from '../components/dashboard/DashboardView';
 import CampaignView from '../components/dashboard/CampaignView';
-import Guild from './Guild';
-import GuildsList from './GuildsList';
+
+const Guild = React.lazy(() => import('./Guild'));
+const GuildsList = React.lazy(() => import('./GuildsList'));
 
 const HomeSkeleton = () => (
     <div className="animate-pulse space-y-8 max-w-7xl mx-auto w-full">
@@ -147,7 +148,9 @@ const StoryDashboard: React.FC = () => {
 
           {viewMode === 'guild' && (
               <motion.div key="guild" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.3 }}>
-                  {user.guildId ? <Guild /> : <GuildsList />}
+                  <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-500" size={32} /></div>}>
+                      {user.guildId ? <Guild /> : <GuildsList />}
+                  </Suspense>
               </motion.div>
           )}
       </AnimatePresence>

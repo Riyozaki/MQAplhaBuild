@@ -891,6 +891,10 @@ const userSlice = createSlice({
           }
           state.nextRegenTime = Date.now() + 60 * 1000; // Reset timer (1 min)
       })
+      .addCase(regenerateStats.rejected, (state) => {
+          // If regen fails (e.g. rate limit), still push the timer forward to prevent infinite loop
+          state.nextRegenTime = Date.now() + 60 * 1000;
+      })
 
       .addCase(addExperience.fulfilled, (state, action) => {
          if (state.currentUser && action.payload) {
