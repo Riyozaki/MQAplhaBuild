@@ -66,7 +66,7 @@ class AnalyticsService {
         events: batch
       });
 
-      await fetch(API_URL, {
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8', 
@@ -74,8 +74,15 @@ class AnalyticsService {
         body: payload,
       });
 
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+
     } catch (error) {
-      console.warn('Failed to send analytics batch:', error);
+      console.warn('Analytics flush failed, returning to queue:', error);
+      this.queue = [...batch, ...this.queue]; // Возвращаем в очередь
+      // Обрезаем если слишком много
+      if (this.queue.length > 100) {
+          this.queue = this.queue.slice(-100);
+      }
     } finally {
       this.isProcessing = false;
     }

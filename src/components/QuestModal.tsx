@@ -42,13 +42,13 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
   const isCompleting = useSelector(selectIsPending('completeQuest'));
   const { playQuestComplete } = useSoundEffects();
   
-  const [taskResults, setTaskResults] = useState<{ [key: number]: TaskResult }>({});
+  const [taskResults, setTaskResults] = useState<{ [key: string]: TaskResult }>({});
   const [completed, setCompleted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   
   // === HINT SYSTEM STATE ===
   const [hintsUsed, setHintsUsed] = useState(0);
-  const [hintedTasks, setHintedTasks] = useState<Set<number>>(new Set());
+  const [hintedTasks, setHintedTasks] = useState<Set<number | string>>(new Set());
   
   const isAdmin = user?.role === 'admin';
 
@@ -145,7 +145,7 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
       return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const handleTaskAnswer = useCallback((taskId: number, isCorrect: boolean, isPartial: boolean = false) => {
+  const handleTaskAnswer = useCallback((taskId: number | string, isCorrect: boolean, isPartial: boolean = false) => {
       setTaskResults(prev => {
           const newResults = { ...prev, [taskId]: { isCorrect, isPartial } };
           if (quest) {
@@ -159,7 +159,7 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
   }, [quest]);
 
   // === HINT HANDLER ===
-  const handleUseHint = useCallback((taskId: number) => {
+  const handleUseHint = useCallback((taskId: number | string) => {
       if (hintsUsed >= MAX_HINTS) {
           toast.warning("Подсказки закончились!");
           return false;
@@ -190,7 +190,7 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
       return true;
   }, [hintsUsed, hintedTasks, quest]);
 
-  const isTaskHinted = useCallback((taskId: number) => {
+  const isTaskHinted = useCallback((taskId: number | string) => {
       return hintedTasks.has(taskId);
   }, [hintedTasks]);
 

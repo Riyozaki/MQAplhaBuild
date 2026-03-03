@@ -166,27 +166,14 @@ const AppContent: React.FC = () => {
 
   // Regen Tick
   useEffect(() => {
-      let lastTime = Date.now();
-      let animationFrameId: number;
-      let isRegenerating = false;
-
-      const tick = () => {
+      const intervalId = setInterval(() => {
           const now = Date.now();
-          if (document.visibilityState === 'visible' && now >= nextRegenTime && !isRegenerating) {
-              isRegenerating = true;
-              dispatch(regenerateStats()).finally(() => {
-                  isRegenerating = false;
-              });
+          if (document.visibilityState === 'visible' && now >= nextRegenTime) {
+              dispatch(regenerateStats());
           }
-          // Check every second roughly, but only when visible
-          if (now - lastTime >= 1000) {
-              lastTime = now;
-          }
-          animationFrameId = requestAnimationFrame(tick);
-      };
+      }, 5000); // Check every 5 seconds
 
-      animationFrameId = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(animationFrameId);
+      return () => clearInterval(intervalId);
   }, [nextRegenTime, dispatch]);
 
   // Online Status Listener for Sync

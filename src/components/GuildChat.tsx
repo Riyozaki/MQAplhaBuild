@@ -22,12 +22,14 @@ const GuildChat: React.FC = () => {
   useEffect(() => {
     if (currentUser?.email && currentUser?.guildId) {
       dispatch(fetchGuildChat(currentUser.email));
-      // Optional: Poll for new messages every 10 seconds
+      
       const interval = setInterval(() => {
+        if (document.hidden) return; // ← НЕ делать запрос при неактивной вкладке
         if (currentUserRef.current?.guildId) {
             dispatch(fetchGuildChat(currentUserRef.current.email));
         }
-      }, 10000);
+      }, 15000); // Poll every 15 seconds
+
       return () => clearInterval(interval);
     }
   }, [dispatch, currentUser?.email, currentUser?.guildId]);
@@ -55,7 +57,10 @@ const GuildChat: React.FC = () => {
   };
 
   const getMemberRole = (email: string) => {
-    return guild?.members.find(m => m.email === email)?.role || 'member';
+    const normalized = email.toLowerCase().trim();
+    return guild?.members.find(m => 
+        m.email.toLowerCase().trim() === normalized
+    )?.role || 'member';
   };
 
   return (
@@ -132,18 +137,26 @@ const GuildChat: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <form onSubmit={handleSend} className="p-4 bg-slate-900 border-t border-slate-800 flex gap-2">
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Написать сообщение..."
-          className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
-        />
+      <form onSubmit={handleSend} className="p-4 bg-slate-900 border-t border-slate-800 flex gap-2 items-end">
+        <div className="flex-1 relative">
+            <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Написать сообщение..."
+            maxLength={300}
+            className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2 pr-12 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
+            />
+            <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs ${
+                message.length >= 300 ? 'text-rose-500 font-bold' : 'text-slate-600'
+            }`}>
+                {message.length}/300
+            </span>
+        </div>
         <button
           type="submit"
           disabled={!message.trim() || isSending}
-          className="p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl transition-colors"
+          className="p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl transition-colors h-[42px]"
         >
           <Send size={20} />
         </button>

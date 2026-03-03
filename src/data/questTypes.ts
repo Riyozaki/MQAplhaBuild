@@ -1,10 +1,10 @@
 // Типы для системы квестов MotivaQuest
 
+import { QuestRarity } from '../types';
+
 export type GradeGroup = 'grade5' | 'grade67' | 'grade89' | 'grade1011';
 
-export type QuestRarity = 'common' | 'rare' | 'epic' | 'legendary';
-
-export interface Quest {
+export interface QuestTemplate {
   id: string;
   title: string;
   description: string;
@@ -16,6 +16,8 @@ export interface Quest {
   coinReward: number;
   gradeGroup: GradeGroup;
 }
+
+export type Quest = QuestTemplate;
 
 export interface GradeGroupInfo {
   id: GradeGroup;
@@ -62,25 +64,25 @@ export const GRADE_GROUPS: GradeGroupInfo[] = [
 ];
 
 export const RARITY_CONFIG: Record<QuestRarity, { label: string; color: string; bgColor: string; borderColor: string }> = {
-  common: {
+  Common: {
     label: 'Обычный',
     color: '#94a3b8',
     bgColor: 'rgba(148, 163, 184, 0.1)',
     borderColor: 'rgba(148, 163, 184, 0.3)',
   },
-  rare: {
+  Rare: {
     label: 'Редкий',
     color: '#3b82f6',
     bgColor: 'rgba(59, 130, 246, 0.1)',
     borderColor: 'rgba(59, 130, 246, 0.3)',
   },
-  epic: {
+  Epic: {
     label: 'Эпический',
     color: '#a855f7',
     bgColor: 'rgba(168, 85, 247, 0.1)',
     borderColor: 'rgba(168, 85, 247, 0.3)',
   },
-  legendary: {
+  Legendary: {
     label: 'Легендарный',
     color: '#f59e0b',
     bgColor: 'rgba(245, 158, 11, 0.1)',

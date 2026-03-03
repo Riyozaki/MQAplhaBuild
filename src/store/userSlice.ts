@@ -10,7 +10,7 @@ import { CAMPAIGN_DATA } from '../data/campaignData';
 import { CALENDAR_CONFIG } from './rewardsSlice';
 
 // Import actions from other slices for extraReducers
-import { completeQuestAction } from './questsSlice';
+import { completeQuestAction } from './actions';
 import { createGuild, guildDonate, leaveGuild, joinGuild, fetchMyGuild, contributeGuildQuest } from './guildSlice';
 
 const STORAGE_KEY_EMAIL = 'motiva_user_email';
@@ -109,6 +109,7 @@ const mapSheetToUser = (rawData: any): UserProfile => {
     const progress = rawData.progress || {};
     const info = rawData.info || {};
     const quests = rawData.quests || [];
+    const guildData = rawData.guild || null;
 
     const mappedHistory: QuestHistoryItem[] = Array.isArray(quests) ? quests.map((q: any) => {
         const rawId = q.questId || q.visitorId;
@@ -199,9 +200,9 @@ const mapSheetToUser = (rawData: any): UserProfile => {
         hasParentalConsent: true,
 
         // Guilds
-        guildId: info.guildId || undefined,
-        guildName: info.guildName || undefined,
-        guildRole: info.guildRole || undefined,
+        guildId: guildData?.guildId || undefined,
+        guildName: guildData?.name || undefined,
+        guildRole: guildData?.myRole || undefined,
         guildXPContributed: Number(info.guildXPContributed) || 0,
     } as UserProfile;
 };
@@ -278,7 +279,7 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
             if (!loginRes.alreadyLoggedIn) {
                 normalizedUser.lastLoginDate = todayStr;
 
-                const bonusMultiplier = 1 + (normalizedUser.streakDays * 0.1);
+                const bonusMultiplier = Math.min(3, 1 + (normalizedUser.streakDays * 0.1));
                 const coinsEarned = Math.floor(50 * bonusMultiplier);
                 const xpEarned = Math.floor(100 * bonusMultiplier);
                 
@@ -372,7 +373,7 @@ export const loginLocal = createAsyncThunk(
         if (!loginRes.alreadyLoggedIn) {
              normalizedUser.lastLoginDate = todayStr;
 
-             const bonusMultiplier = 1 + (normalizedUser.streakDays * 0.1);
+             const bonusMultiplier = Math.min(3, 1 + (normalizedUser.streakDays * 0.1));
              const coinsEarned = Math.floor(50 * bonusMultiplier);
              const xpEarned = Math.floor(100 * bonusMultiplier);
 
@@ -1049,7 +1050,7 @@ const userSlice = createSlice({
       })
       .addCase(createGuild.fulfilled, (state, action) => {
           if (state.currentUser) {
-              state.currentUser.coins = Math.max(0, state.currentUser.coins - 100);
+              state.currentUser.coins = Math.max(0, state.currentUser.coins - 200);
               state.currentUser.guildId = action.payload.guildId;
               state.currentUser.guildName = action.meta.arg.name;
               state.currentUser.guildRole = 'leader';
@@ -1072,6 +1073,7 @@ const userSlice = createSlice({
               state.currentUser.guildId = undefined;
               state.currentUser.guildName = undefined;
               state.currentUser.guildRole = undefined;
+              state.currentUser.guildXPContributed = 0;
           }
       })
       .addCase(contributeGuildQuest.fulfilled, (state, action) => {

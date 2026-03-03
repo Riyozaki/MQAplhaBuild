@@ -7,6 +7,9 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from 'react-router-dom';
 import { getQuestsByGrade, getCategoriesForGrade, getTasksForQuest, Quest as GradeQuest, QuestRarity, RARITY_CONFIG } from '../data';
+import { Quest } from '../types';
+
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const Quests: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -14,7 +17,7 @@ const Quests: React.FC = () => {
   const { user } = useAuth();
   const location = useLocation();
   
-  const [selectedQuest, setSelectedQuest] = useState<any>(null);
+  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [activeRarity, setActiveRarity] = useState<QuestRarity | 'all'>('all');
 
@@ -32,7 +35,11 @@ const Quests: React.FC = () => {
 
   // Get quests for selected grade group
   const gradeGroupKey = (gradeGroup || 'grade67') as any;
-  const allQuests = getQuestsByGrade(gradeGroupKey);
+  const rawGradeQuests = getQuestsByGrade(gradeGroupKey);
+  const allQuests = rawGradeQuests.map(q => ({
+      ...q,
+      rarity: (q.rarity.charAt(0).toUpperCase() + q.rarity.slice(1)) as QuestRarity
+  }));
   const categories = getCategoriesForGrade(gradeGroupKey);
 
   // Track completed quests from user history
@@ -50,7 +57,7 @@ const Quests: React.FC = () => {
   }
 
   // Sort: incomplete first, then by rarity (legendary > epic > rare > common)
-  const rarityOrder: Record<string, number> = { legendary: 4, epic: 3, rare: 2, common: 1 };
+  const rarityOrder: Record<string, number> = { Legendary: 4, Epic: 3, Rare: 2, Common: 1 };
   const sortedQuests = [...filteredQuests].sort((a, b) => {
     const aCompleted = completedQuestIds.has(a.id);
     const bCompleted = completedQuestIds.has(b.id);
@@ -61,46 +68,48 @@ const Quests: React.FC = () => {
   // Map grade quest to format compatible with QuestModal
   const openQuest = (quest: GradeQuest) => {
     const tasks = getTasksForQuest(quest.id) || [];
-    const mapped = {
+    const mapped: Quest = {
       id: quest.id,
       title: quest.title,
       description: quest.description,
       category: quest.category,
-      rarity: quest.rarity.charAt(0).toUpperCase() + quest.rarity.slice(1),
+      rarity: quest.rarity, // Already Capitalized
       xp: quest.xpReward,
       coins: quest.coinReward,
       completed: completedQuestIds.has(quest.id),
       type: 'quest',
-      minMinutes: quest.rarity === 'legendary' ? 60 : quest.rarity === 'epic' ? 30 : quest.rarity === 'rare' ? 15 : 5,
+      minMinutes: quest.rarity === 'Legendary' ? 60 : quest.rarity === 'Epic' ? 30 : quest.rarity === 'Rare' ? 15 : 5,
       tasks: tasks,
+      difficulty: quest.rarity === 'Legendary' ? 'Hard' : quest.rarity === 'Epic' ? 'Hard' : quest.rarity === 'Rare' ? 'Medium' : 'Easy',
+      isHabit: false
     };
     setSelectedQuest(mapped);
   };
 
   const getRarityStyles = (rarity: string) => {
     switch (rarity) {
-      case 'legendary':
+      case 'Legendary':
         return {
           border: 'border-amber-500/50',
           glow: 'hover:shadow-[0_0_20px_rgba(245,158,11,0.3)]',
           bg: 'bg-amber-900/10',
           textColor: 'text-amber-400'
         };
-      case 'epic':
+      case 'Epic':
         return {
           border: 'border-purple-500/50',
           glow: 'hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]',
           bg: 'bg-purple-900/10',
           textColor: 'text-purple-400'
         };
-      case 'rare':
+      case 'Rare':
         return {
           border: 'border-blue-500/50',
           glow: 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]',
           bg: 'bg-blue-900/10',
           textColor: 'text-blue-400'
         };
-      case 'common':
+      case 'Common':
       default:
         return {
           border: 'border-slate-600/50',
@@ -113,10 +122,10 @@ const Quests: React.FC = () => {
 
   const rarityFilters = [
     { key: 'all' as const, label: 'Все', color: 'text-white' },
-    { key: 'common' as const, label: 'Обычный', color: 'text-slate-300' },
-    { key: 'rare' as const, label: 'Редкий', color: 'text-blue-400' },
-    { key: 'epic' as const, label: 'Эпик', color: 'text-purple-400' },
-    { key: 'legendary' as const, label: 'Легенда', color: 'text-amber-400' },
+    { key: 'Common' as const, label: 'Обычный', color: 'text-slate-300' },
+    { key: 'Rare' as const, label: 'Редкий', color: 'text-blue-400' },
+    { key: 'Epic' as const, label: 'Эпик', color: 'text-purple-400' },
+    { key: 'Legendary' as const, label: 'Легенда', color: 'text-amber-400' },
   ];
 
   return (
@@ -216,11 +225,13 @@ const Quests: React.FC = () => {
       )}
 
       {/* Quest Modal */}
-      <QuestModal
-        quest={selectedQuest}
-        isOpen={!!selectedQuest}
-        onClose={() => setSelectedQuest(null)}
-      />
+      <ErrorBoundary>
+        <QuestModal
+            quest={selectedQuest}
+            isOpen={!!selectedQuest}
+            onClose={() => setSelectedQuest(null)}
+        />
+      </ErrorBoundary>
     </div>
   );
 };

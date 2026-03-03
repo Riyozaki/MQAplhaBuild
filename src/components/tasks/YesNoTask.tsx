@@ -5,7 +5,7 @@ import { Check, X, MinusCircle } from 'lucide-react';
 
 interface Props {
     task: Task;
-    onAnswer: (taskId: number, isCorrect: boolean, isPartial?: boolean) => void;
+    onAnswer: (taskId: number | string, isCorrect: boolean, isPartial?: boolean) => void;
 }
 
 const YesNoTask: React.FC<Props> = ({ task, onAnswer }) => {

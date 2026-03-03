@@ -5,7 +5,7 @@ import { Check, X, ArrowRight } from 'lucide-react';
 
 interface Props {
     task: Task;
-    onAnswer: (taskId: number, isCorrect: boolean) => void;
+    onAnswer: (taskId: number | string, isCorrect: boolean) => void;
 }
 
 const InputTask: React.FC<Props> = ({ task, onAnswer }) => {

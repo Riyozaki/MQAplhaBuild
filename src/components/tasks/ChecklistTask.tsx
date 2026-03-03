@@ -5,7 +5,7 @@ import { CheckSquare, Square } from 'lucide-react';
 
 interface Props {
     task: Task;
-    onAnswer: (taskId: number, isCorrect: boolean, isPartial?: boolean) => void;
+    onAnswer: (taskId: number | string, isCorrect: boolean, isPartial?: boolean) => void;
 }
 
 const ChecklistTask: React.FC<Props> = ({ task, onAnswer }) => {

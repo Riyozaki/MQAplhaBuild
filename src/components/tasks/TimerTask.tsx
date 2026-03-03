@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 interface Props {
     task: Task;
-    onAnswer: (taskId: number, isCorrect: boolean, isPartial?: boolean) => void;
+    onAnswer: (taskId: number | string, isCorrect: boolean, isPartial?: boolean) => void;
 }
 
 const TimerTask: React.FC<Props> = ({ task, onAnswer }) => {

@@ -14,6 +14,8 @@ import LandingPage from '../components/LandingPage';
 import DashboardView from '../components/dashboard/DashboardView';
 import CampaignView from '../components/dashboard/CampaignView';
 
+import ErrorBoundary from '../components/ErrorBoundary';
+
 const HomeSkeleton = () => (
     <div className="animate-pulse space-y-8 max-w-7xl mx-auto w-full">
         {/* Hero */}
@@ -138,17 +140,21 @@ const StoryDashboard: React.FC = () => {
       </AnimatePresence>
 
       {/* Modals */}
-      <QuestModal 
-          quest={selectedQuest} 
-          isOpen={!!selectedQuest} 
-          onClose={() => setSelectedQuest(null)} 
-          multiplier={questMultiplier}
-      />
-      <BossBattleModal 
-        isOpen={isBossModalOpen} 
-        onClose={() => setIsBossModalOpen(false)} 
-        allies={user.campaign.unlockedAllies || []} 
-      />
+      <ErrorBoundary>
+        <QuestModal 
+            quest={selectedQuest} 
+            isOpen={!!selectedQuest} 
+            onClose={() => setSelectedQuest(null)} 
+            multiplier={questMultiplier}
+        />
+      </ErrorBoundary>
+      <ErrorBoundary>
+        <BossBattleModal 
+            isOpen={isBossModalOpen} 
+            onClose={() => setIsBossModalOpen(false)} 
+            allies={user.campaign.unlockedAllies || []} 
+        />
+      </ErrorBoundary>
     </div>
   );
 };

@@ -6,9 +6,9 @@ import { useSoundEffects } from '../hooks/useSoundEffects';
 
 interface Props {
     task: Task;
-    onAnswer: (taskId: number, isCorrect: boolean) => void;
+    onAnswer: (taskId: number | string, isCorrect: boolean) => void;
     // Hint props (optional for backward compat)
-    onHint?: (taskId: number) => boolean;
+    onHint?: (taskId: number | string) => boolean;
     isHinted?: boolean;
     hintsRemaining?: number;
 }

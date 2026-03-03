@@ -6,7 +6,7 @@ import { useSoundEffects } from '../../hooks/useSoundEffects';
 
 interface Props {
     task: Task;
-    onAnswer: (taskId: number, isCorrect: boolean) => void;
+    onAnswer: (taskId: number | string, isCorrect: boolean) => void;
 }
 
 const QuizTask: React.FC<Props> = ({ task, onAnswer }) => {

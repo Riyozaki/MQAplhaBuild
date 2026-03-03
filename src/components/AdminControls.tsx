@@ -24,8 +24,8 @@ const AdminControls: React.FC = () => {
     // Panel States
     const [isOpen, setIsOpen] = useState(false);
 
-    // Show only for admin role or the specific demo user ID (User Level check)
-    if (!user || (user.role !== 'admin' && user.uid !== 'demo_hero_id')) return null;
+    // Show only for admin role
+    if (!user || user.role !== 'admin') return null;
 
     // --- Actions ---
 

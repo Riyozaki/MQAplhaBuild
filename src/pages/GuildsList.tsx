@@ -23,6 +23,8 @@ const GuildsList: React.FC = () => {
 
   const emblems = ['🛡️', '⚔️', '🏰', '🐉', '🔥', '⚡', '🌟', '👑', '🦅', '🦁', '🐺', '💀'];
 
+  const [joiningGuildId, setJoiningGuildId] = useState<string | null>(null);
+
   useEffect(() => {
     dispatch(fetchGuildsList());
   }, [dispatch]);
@@ -30,7 +32,13 @@ const GuildsList: React.FC = () => {
   const handleJoin = async (guildId: string) => {
     if (!currentUser?.email) return;
     if (window.confirm(`Вступить в гильдию?`)) {
-        await dispatch(joinGuild({ email: currentUser.email, guildId }));
+        setJoiningGuildId(guildId);
+        const result = await dispatch(joinGuild({ email: currentUser.email, guildId }));
+        setJoiningGuildId(null);
+        
+        if (joinGuild.fulfilled.match(result)) {
+            navigate('/guild');
+        }
     }
   };
 
@@ -38,8 +46,8 @@ const GuildsList: React.FC = () => {
     e.preventDefault();
     if (!currentUser?.email) return;
     
-    if ((currentUser.coins || 0) < 100) {
-        toast.error('Недостаточно монет! Нужно 100 💰');
+    if ((currentUser.coins || 0) < 200) {
+        toast.error('Недостаточно монет! Нужно 200 💰');
         return;
     }
 
@@ -58,7 +66,7 @@ const GuildsList: React.FC = () => {
 
     if (createGuild.fulfilled.match(result)) {
         setIsCreateModalOpen(false);
-        toast.success('Гильдия создана! -100 монет');
+        toast.success('Гильдия создана! -200 монет');
     }
   };
 
@@ -158,13 +166,16 @@ const GuildsList: React.FC = () => {
 
                             <button
                                 onClick={() => handleJoin(guild.guildId)}
-                                disabled={!guild.isOpen || guild.memberCount >= guild.maxMembers}
-                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                disabled={!guild.isOpen || guild.memberCount >= guild.maxMembers || joiningGuildId === guild.guildId}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
                                     !guild.isOpen || guild.memberCount >= guild.maxMembers
                                     ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
                                     : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-900/20'
                                 }`}
                             >
+                                {joiningGuildId === guild.guildId ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : null}
                                 {guild.memberCount >= guild.maxMembers ? 'Мест нет' : 'Вступить'}
                             </button>
                         </div>
@@ -268,10 +279,10 @@ const GuildsList: React.FC = () => {
                                 type="submit"
                                 className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-900/30 active:scale-[0.98]"
                             >
-                                Создать за 100 монет
+                                Создать за 200 монет
                             </button>
                             <p className="text-center text-xs text-slate-500 mt-3">
-                                Создание гильдии стоит 100 монет. Вы станете её лидером.
+                                Создание гильдии стоит 200 монет. Вы станете её лидером.
                             </p>
                         </div>
                     </form>

@@ -10,7 +10,7 @@ export type TaskType =
   | 'matching';        
 
 export interface Task {
-  id: number;
+  id: number | string;
   type: TaskType;
   question: string;
   

@@ -13,6 +13,8 @@ import GuildQuestModal from '../components/GuildQuestModal';
 import { GuildQuest } from '../types';
 import Modal from 'react-modal';
 
+import ErrorBoundary from '../components/ErrorBoundary';
+
 const Guild: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
@@ -370,10 +372,12 @@ const Guild: React.FC = () => {
 
       <AnimatePresence>
         {isSettingsOpen && (
-          <GuildSettingsModal 
-            isOpen={isSettingsOpen} 
-            onClose={() => setIsSettingsOpen(false)} 
-          />
+          <ErrorBoundary>
+            <GuildSettingsModal 
+                isOpen={isSettingsOpen} 
+                onClose={() => setIsSettingsOpen(false)} 
+            />
+          </ErrorBoundary>
         )}
       </AnimatePresence>
       <AnimatePresence>

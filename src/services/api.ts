@@ -15,10 +15,8 @@ export const setStoreRef = (store: any) => {
 // ═══════════════════════════════════════════════════════════
 export const API_URL = import.meta.env.VITE_API_URL || 'https://script.google.com/macros/s/AKfycbyibXkrpjTcaGb23jx_WosICwTx3jL8RYGYayNh3ypi6Vaz2nRUaKVTuhb1oEAFELgTJw/exec';
 
-// ВАЖНО: Content-Type 'text/plain;charset=utf-8' используется намеренно как хак для Google Apps Script (GAS), 
+// ВАЖНО: Content-Type 'text/plain;charset=utf-8' используется намеренно как хак для Google Apps Script (GAS),
 // чтобы избежать отправки CORS-preflight запросов (OPTIONS), которые GAS обрабатывает некорректно.
-// При миграции бэкенда с GAS на полноценный сервер (например, Node.js/Express), 
-// обязательно измените это на 'application/json'.
 const CONTENT_TYPE = 'text/plain;charset=utf-8';
 
 const TIMEOUT_MS = 25000;
@@ -27,6 +25,7 @@ const MAX_QUEUE_SIZE = 50;
 
 // ── v3: Токен сессии ──
 const TOKEN_KEY = 'motiva_session_token';
+const GET_CACHE_KEY = 'motiva_get_cache';
 
 function getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
@@ -38,6 +37,23 @@ function setToken(token: string) {
 
 function clearToken() {
     localStorage.removeItem(TOKEN_KEY);
+}
+
+function cacheGetResponse(action: string, email: string, data: any) {
+    try {
+        const cache = JSON.parse(localStorage.getItem(GET_CACHE_KEY) || '{}');
+        cache[`${action}_${email}`] = { data, timestamp: Date.now() };
+        localStorage.setItem(GET_CACHE_KEY, JSON.stringify(cache));
+    } catch (e) { /* переполнение localStorage */ }
+}
+
+function getCachedResponse(action: string, email: string): any | null {
+    try {
+        const cache = JSON.parse(localStorage.getItem(GET_CACHE_KEY) || '{}');
+        const entry = cache[`${action}_${email}`];
+        if (entry && Date.now() - entry.timestamp < 3600000) return entry.data;
+    } catch (e) {}
+    return null;
 }
 
 // ── Приоритеты для offline queue ──
@@ -219,6 +235,13 @@ export const flushOfflineQueue = async () => {
                     newQueue.push(req);
                 } else {
                     console.error(`[Offline] Logic error for ${req.action}:`, e);
+
+                    // Handle "Email already exists" for register action - treat as success/skip
+                    if (req.action === 'register' && e.message && e.message.includes('Email already exists')) {
+                        console.warn(`[Offline] Registration already completed on server. Removing ${req.action} from queue.`);
+                        continue; // Skip adding to newQueue
+                    }
+
                     if (req.retryCount > 5) {
                         console.warn(`[Offline] Dropping ${req.action} after 5 retries.`);
                     } else {
@@ -307,6 +330,8 @@ const request = async <T = any>(action: string, data: any = {}, method: 'POST' |
             flushOfflineQueue(); 
         }
 
+        if (method === 'GET') cacheGetResponse(action, data.email || '', result);
+
         return result as T;
     } catch (error: any) {
         clearTimeout(id);
@@ -316,6 +341,11 @@ const request = async <T = any>(action: string, data: any = {}, method: 'POST' |
         if (isNetworkError && !skipQueue && method === 'POST') {
              saveToQueue(action, data);
              throw new Error("OFFLINE_SAVED");
+        }
+
+        if (isNetworkError && method === 'GET') {
+            const cached = getCachedResponse(action, data.email || '');
+            if (cached) return cached as T;
         }
         
         if (error.name === 'AbortError') {
@@ -334,7 +364,6 @@ export const api = {
         });
         // v3: Сохраняем токен сессии
         if (res.token) setToken(res.token);
-        await sleep(2000); // Wait for sheet consistency
         return res;
     },
 
@@ -515,7 +544,7 @@ export const api = {
     },
 
     updateGuildSettings: async (email: string, settings: { description?: string, emblem?: string, isOpen?: boolean }) => {
-        return await request<{success: true}>('updateGuildSettings', { email, settings });
+        return await request<{success: true}>('updateGuildSettings', { email, ...settings });
     },
 
     createGuildQuest: async (email: string, questName: string, targetValue: number, questType: string, category: string, rewards: any) => {

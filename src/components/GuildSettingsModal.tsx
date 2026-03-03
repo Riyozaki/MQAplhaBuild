@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
 import { updateGuildSettings, kickMember, setMemberRole, createGuildQuest } from '../store/guildSlice';
@@ -74,7 +74,6 @@ const GuildSettingsModal: React.FC<GuildSettingsModalProps> = ({ isOpen, onClose
     }));
     setQuestName('');
     setQuestTarget(10);
-    toast.success('Квест создан!');
   };
 
   return (

@@ -4,8 +4,8 @@ import { Check, X, ArrowRight, Lightbulb } from 'lucide-react';
 
 interface Props {
     task: Task;
-    onAnswer: (taskId: number, isCorrect: boolean) => void;
-    onHint?: (taskId: number) => boolean;
+    onAnswer: (taskId: number | string, isCorrect: boolean) => void;
+    onHint?: (taskId: number | string) => boolean;
     isHinted?: boolean;
     hintsRemaining?: number;
 }
