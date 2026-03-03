@@ -150,12 +150,12 @@ export const fetchQuests = createAsyncThunk('quests/fetchQuests', async (_, { ge
 
 export const completeQuestAction = createAsyncThunk(
     'quests/completeQuestAction',
-    async (payload: { quest: Quest, multiplier?: number }, { getState, rejectWithValue }) => {
+    async (payload: { quest: Quest, multiplier?: number, isAutoComplete?: boolean }, { getState, rejectWithValue }) => {
         const state = getState() as RootState;
         const user = state.user.currentUser;
         if (!user || !user.email) return rejectWithValue("No user");
         
-        const { quest, multiplier = 1 } = payload;
+        const { quest, multiplier = 1, isAutoComplete = false } = payload;
         
         const dailyLimit = 15;
         if ((user.dailyCompletionsCount || 0) >= dailyLimit) {
@@ -177,6 +177,9 @@ export const completeQuestAction = createAsyncThunk(
         let xpReward = Math.floor(quest.xp * multiplier * classMultiplierXp);
         let coinsReward = Math.floor(quest.coins * multiplier * classMultiplierCoins);
         const hpLost = multiplier < 0.5 ? 5 : 0; // Penalty for bad performance
+
+        // For habits, score is 1.0 (100%)
+        const score = isAutoComplete ? 1.0 : multiplier;
 
         // Calculate potential new levels
         let currentLevel = user.level || 1;
@@ -200,7 +203,7 @@ export const completeQuestAction = createAsyncThunk(
             xpEarned: xpReward,
             coinsEarned: coinsReward, // Add this
             date: new Date().toISOString(),
-            score: multiplier,
+            score: score,
             category: quest.category
         };
         
@@ -212,7 +215,7 @@ export const completeQuestAction = createAsyncThunk(
                 questName: quest.title,
                 category: quest.category,
                 rarity: quest.rarity,
-                score: multiplier, 
+                score: score, 
                 multiplier: multiplier,
                 xpEarned: xpReward,
                 coinsEarned: coinsReward,

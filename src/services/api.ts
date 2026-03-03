@@ -47,7 +47,7 @@ function cacheGetResponse(action: string, email: string, data: any) {
     } catch (e) { /* переполнение localStorage */ }
 }
 
-function getCachedResponse(action: string, email: string): any | null {
+export function getCachedResponse(action: string, email: string): any | null {
     try {
         const cache = JSON.parse(localStorage.getItem(GET_CACHE_KEY) || '{}');
         const entry = cache[`${action}_${email}`];
@@ -265,6 +265,12 @@ export const flushOfflineQueue = async () => {
     }
 };
 
+let flushTimer: any = null;
+const debouncedFlush = () => {
+    if (flushTimer) clearTimeout(flushTimer);
+    flushTimer = setTimeout(flushOfflineQueue, 3000);
+};
+
 const request = async <T = any>(action: string, data: any = {}, method: 'POST' | 'GET' = 'POST', retryCount = 0, skipQueue = false): Promise<T> => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -318,8 +324,8 @@ const request = async <T = any>(action: string, data: any = {}, method: 'POST' |
             }
             // Retry logic for "User not found" which might be a latency issue on sheets
             if (result.error.includes('User not found') && retryCount < 3) {
-                console.warn(`[${action}] User not found, retrying in 2s... (Attempt ${retryCount + 1})`);
-                await sleep(2000);
+                console.warn(`[${action}] User not found, retrying... (Attempt ${retryCount + 1})`);
+                await sleep(500 * (retryCount + 1));
                 return request<T>(action, data, method, retryCount + 1, skipQueue);
             }
             throw new Error(result.error);
@@ -327,7 +333,7 @@ const request = async <T = any>(action: string, data: any = {}, method: 'POST' |
 
         // On Success: Try to flush pending offline requests in background
         if (!skipQueue) {
-            flushOfflineQueue(); 
+            debouncedFlush(); 
         }
 
         if (method === 'GET') cacheGetResponse(action, data.email || '', result);
@@ -354,6 +360,13 @@ const request = async <T = any>(action: string, data: any = {}, method: 'POST' |
         
         throw error;
     }
+};
+
+export const startKeepAlive = () => {
+    const id = setInterval(() => {
+        fetch(API_URL + '?action=ping').catch(() => {});
+    }, 240000); // 4 min
+    return id;
 };
 
 export const api = {

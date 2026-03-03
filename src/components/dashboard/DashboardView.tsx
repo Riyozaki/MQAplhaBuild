@@ -105,7 +105,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
     const handleHabitComplete = (q: Quest) => {
         if (isQuestCompletedToday(Number(q.id)) || isPendingQuest) return;
         
-        dispatch(completeQuestAction({ quest: q, multiplier: 1 })).unwrap().then(() => {
+        dispatch(completeQuestAction({ quest: q, multiplier: 1, isAutoComplete: true })).unwrap().then(() => {
             confetti({ 
                 particleCount: 30, 
                 spread: 40, 

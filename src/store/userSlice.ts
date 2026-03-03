@@ -3,7 +3,7 @@ import { UserProfile, SurveySubmission, ThemeColor, QuestHistoryItem, HeroClass 
 import { toast } from 'react-toastify';
 import { RootState } from './index';
 import { analytics } from '../services/analytics';
-import { api, BossBattlePayload } from '../services/api';
+import { api, BossBattlePayload, getCachedResponse } from '../services/api';
 import { audio } from '../services/audio';
 import { handleApiError } from '../utils/errorHandler';
 import { CAMPAIGN_DATA } from '../data/campaignData';
@@ -247,59 +247,111 @@ export const regenerateStats = createAsyncThunk(
     }
 );
 
+// 1. Unify date format
+const getTodayISO = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+};
+
+// --- HELPER: Process Daily Login Logic ---
+const processDailyLogin = (user: UserProfile, loginRes: any, dispatch: any): DailyRewardData | null => {
+    if (!loginRes || !loginRes.success) return null;
+
+    const todayStr = getTodayISO();
+    
+    // Update streak and HP from server response
+    user.streakDays = loginRes.streakDays;
+    if (loginRes.progress && loginRes.progress.currentHp !== undefined) {
+        user.currentHp = loginRes.progress.currentHp;
+    }
+
+    // Reset daily completions if new day
+    if (user.lastLoginDate !== todayStr) {
+        user.dailyCompletionsCount = 0;
+    }
+
+    // If already logged in today on server, we don't give reward again
+    if (loginRes.alreadyLoggedIn) {
+        // Ensure local date is synced even if no reward
+        if (user.lastLoginDate !== todayStr) {
+             user.lastLoginDate = todayStr;
+        }
+        return null;
+    }
+
+    // --- GRANT REWARD ---
+    user.lastLoginDate = todayStr;
+    localStorage.setItem('motiva_last_login_date', todayStr);
+
+    const bonusMultiplier = Math.min(3, 1 + (user.streakDays * 0.1));
+    const coinsEarned = Math.floor(50 * bonusMultiplier);
+    const xpEarned = Math.floor(100 * bonusMultiplier);
+    
+    // --- CALENDAR REWARD LOGIC ---
+    const calendarReward = CALENDAR_CONFIG.find(c => c.day === user.streakDays);
+    if (calendarReward) {
+            if (calendarReward.item) {
+                // Grant item
+                if (!user.inventory.includes(calendarReward.item)) {
+                    user.inventory.push(calendarReward.item);
+                    api.addPurchase(user.email, { id: calendarReward.item, name: 'Calendar Reward', cost: 0 }).catch(console.warn);
+                    toast.success(`🎁 Получена награда календаря!`);
+                }
+            }
+    }
+
+    const reward = { coins: coinsEarned, xp: xpEarned, streak: user.streakDays, bonusMultiplier };
+    dispatch(addExperience({ xp: xpEarned, coins: coinsEarned }));
+    
+    return reward;
+};
+
 export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }) => {
     const email = localStorage.getItem(STORAGE_KEY_EMAIL);
     if (!email) return null;
 
+    // 1. Optimistic UI: Show cached data immediately
+    const cached = getCachedResponse('getAllUserData', email);
+    if (cached) {
+        try {
+            const cachedUser = mapSheetToUser(cached);
+            dispatch({ type: 'user/setUser', payload: cachedUser });
+        } catch (e) { console.warn("Cache parse failed", e); }
+    }
+
     try {
-        const response = await api.getAllUserData(email);
+        const todayStr = getTodayISO();
+        const cachedLastLogin = localStorage.getItem('motiva_last_login_date');
+        const shouldCallLogin = cachedLastLogin !== todayStr;
+
+        // 2. Parallel requests
+        const promises: Promise<any>[] = [api.getAllUserData(email)];
+        if (shouldCallLogin) {
+            promises.push(api.dailyLogin(email));
+        }
+
+        const results = await Promise.all(promises);
+        const response = results[0];
+        const loginRes = shouldCallLogin ? results[1] : null;
+
         if (!response.success) {
             return null;
         }
 
         const normalizedUser = mapSheetToUser(response);
-        const loginRes = await api.dailyLogin(email);
-        
         let reward: DailyRewardData | null = null;
         
-        if (loginRes.success) {
-            normalizedUser.streakDays = loginRes.streakDays;
-            if (loginRes.progress && loginRes.progress.currentHp !== undefined) {
-                normalizedUser.currentHp = loginRes.progress.currentHp;
-            }
-
-            const now = new Date();
-            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            
-            // Reset daily completions if new day
-            if (normalizedUser.lastLoginDate !== todayStr) {
-                normalizedUser.dailyCompletionsCount = 0;
-            }
-
-            if (!loginRes.alreadyLoggedIn) {
-                normalizedUser.lastLoginDate = todayStr;
-
-                const bonusMultiplier = Math.min(3, 1 + (normalizedUser.streakDays * 0.1));
-                const coinsEarned = Math.floor(50 * bonusMultiplier);
-                const xpEarned = Math.floor(100 * bonusMultiplier);
-                
-                // --- CALENDAR REWARD LOGIC ---
-                const calendarReward = CALENDAR_CONFIG.find(c => c.day === normalizedUser.streakDays);
-                if (calendarReward) {
-                     if (calendarReward.item) {
-                         // Grant item
-                         if (!normalizedUser.inventory.includes(calendarReward.item)) {
-                             normalizedUser.inventory.push(calendarReward.item);
-                             api.addPurchase(normalizedUser.email, { id: calendarReward.item, name: 'Calendar Reward', cost: 0 }).catch(console.warn);
-                             toast.success(`🎁 Получена награда календаря!`);
-                         }
-                     }
-                }
-
-                reward = { coins: coinsEarned, xp: xpEarned, streak: normalizedUser.streakDays, bonusMultiplier };
-                dispatch(addExperience({ xp: xpEarned, coins: coinsEarned }));
-            }
+        if (shouldCallLogin && loginRes) {
+            reward = processDailyLogin(normalizedUser, loginRes, dispatch);
+        } else {
+             // Already logged in today locally
+             // We still want to ensure normalizedUser has correct date if it came from sheet as old
+             if (normalizedUser.lastLoginDate !== todayStr) {
+                 normalizedUser.lastLoginDate = todayStr;
+                 normalizedUser.dailyCompletionsCount = 0; // Reset if sheet was stale
+             }
         }
+        
         return { user: normalizedUser, reward };
     } catch (e) {
         console.error("Auth Init Failed:", e);
@@ -311,6 +363,7 @@ export const loginDemo = createAsyncThunk('user/loginDemo', async (_, { dispatch
     const demoEmail = 'demo@motivaquest.local';
     const demoPass = 'demo123';
     const demoUsername = "Demo Hero";
+    const todayStr = getTodayISO();
 
     const demoUserStruct = {
         ...DEFAULT_USER_DATA,
@@ -322,7 +375,7 @@ export const loginDemo = createAsyncThunk('user/loginDemo', async (_, { dispatch
         heroClass: 'warrior',
         className: 'Warrior',
         classEmoji: '⚔️',
-        lastLoginDate: new Date().toDateString(),
+        lastLoginDate: todayStr, // Use ISO format
         hasParentalConsent: true,
         currentHp: 100,
         coins: 0,
@@ -335,7 +388,12 @@ export const loginDemo = createAsyncThunk('user/loginDemo', async (_, { dispatch
         normalizedUser.role = 'student';
         normalizedUser.uid = 'demo_hero_id';
         localStorage.setItem(STORAGE_KEY_EMAIL, normalizedUser.email);
-        return { user: normalizedUser, reward: null };
+        
+        // Simulate daily login for demo
+        const loginRes = { success: true, streakDays: (normalizedUser.streakDays || 0) + 1, alreadyLoggedIn: false };
+        const reward = processDailyLogin(normalizedUser, loginRes, dispatch);
+
+        return { user: normalizedUser, reward };
     } catch (e: any) {
         console.warn("Demo user login failed. Registering...");
         try { await api.register(demoEmail, demoPass, demoUsername, 10, "Warrior", "⚔️"); } catch (regError) {}
@@ -357,43 +415,7 @@ export const loginLocal = createAsyncThunk(
     localStorage.setItem(STORAGE_KEY_EMAIL, normalizedUser.email);
     
     const loginRes = await api.dailyLogin(normalizedUser.email);
-    let reward = null;
-
-    if (loginRes.success) {
-        normalizedUser.streakDays = loginRes.streakDays;
-        
-        const now = new Date();
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        
-        // Reset daily completions if new day
-        if (normalizedUser.lastLoginDate !== todayStr) {
-            normalizedUser.dailyCompletionsCount = 0;
-        }
-
-        if (!loginRes.alreadyLoggedIn) {
-             normalizedUser.lastLoginDate = todayStr;
-
-             const bonusMultiplier = Math.min(3, 1 + (normalizedUser.streakDays * 0.1));
-             const coinsEarned = Math.floor(50 * bonusMultiplier);
-             const xpEarned = Math.floor(100 * bonusMultiplier);
-
-             // --- CALENDAR REWARD LOGIC ---
-             const calendarReward = CALENDAR_CONFIG.find(c => c.day === normalizedUser.streakDays);
-             if (calendarReward) {
-                  if (calendarReward.item) {
-                      // Grant item
-                      if (!normalizedUser.inventory.includes(calendarReward.item)) {
-                          normalizedUser.inventory.push(calendarReward.item);
-                          api.addPurchase(normalizedUser.email, { id: calendarReward.item, name: 'Calendar Reward', cost: 0 }).catch(console.warn);
-                          toast.success(`🎁 Получена награда календаря!`);
-                      }
-                  }
-             }
-
-             reward = { coins: coinsEarned, xp: xpEarned, streak: normalizedUser.streakDays, bonusMultiplier };
-             dispatch(addExperience({ xp: reward.xp, coins: reward.coins }));
-        }
-    }
+    const reward = processDailyLogin(normalizedUser, loginRes, dispatch);
 
     return { user: normalizedUser, reward };
   }

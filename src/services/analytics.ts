@@ -18,7 +18,20 @@ class AnalyticsService {
   private FLUSH_DELAY = 2000;
 
   constructor() {
+    // HMR Cleanup: Stop previous instance if exists
+    if ((window as any).__ANALYTICS_INSTANCE__) {
+        try { (window as any).__ANALYTICS_INSTANCE__.destroy(); } catch(e) {}
+    }
+    (window as any).__ANALYTICS_INSTANCE__ = this;
+    
     this.startAutoFlush();
+  }
+
+  public destroy() {
+      if (this.flushInterval) {
+          clearInterval(this.flushInterval);
+          this.flushInterval = null;
+      }
   }
 
   private startAutoFlush() {

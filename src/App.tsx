@@ -17,9 +17,11 @@ import { ThemeColor } from './types';
 import { regenerateStats, updateUserProfile, setGradeGroup } from './store/userSlice';
 import GradeSelection from './components/GradeSelection';
 import { GradeGroup } from './data/questTypes';
-import { api } from './services/api';
+import { api, startKeepAlive } from './services/api';
 import Modal from 'react-modal';
 import { Loader2 } from 'lucide-react';
+
+import RPGLoader from './components/RPGLoader';
 
 // Lazy Load Pages
 const Home = React.lazy(() => import('./pages/Home'));
@@ -34,12 +36,8 @@ const Guild = React.lazy(() => import('./pages/Guild'));
 const GuildsList = React.lazy(() => import('./pages/GuildsList'));
 const NotFound = React.lazy(() => import('./pages/NotFound'));
 
-// Loading Fallback
-const PageLoader = () => (
-  <div className="flex h-96 items-center justify-center text-indigo-400">
-    <Loader2 className="animate-spin mr-2" /> Загрузка магии...
-  </div>
-);
+// Loading Fallback (Replaced by RPGLoader)
+// const PageLoader = ...
 
 // Theme Colors Config
 const THEME_COLORS: Record<ThemeColor, Record<number, string>> = {
@@ -110,7 +108,7 @@ const AnimatedRoutes: React.FC = () => {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
             >
-                <Suspense fallback={<PageLoader />}>
+                <Suspense fallback={<RPGLoader />}>
                     <Routes location={location}>
                         <Route path="/" element={<ErrorBoundary><Home /></ErrorBoundary>} />
                         <Route path="/login" element={<ErrorBoundary><Login /></ErrorBoundary>} />
@@ -176,7 +174,7 @@ const AppContent: React.FC = () => {
       return () => clearInterval(intervalId);
   }, [nextRegenTime, dispatch]);
 
-  // Online Status Listener for Sync
+  // Online Status Listener for Sync & Keep Alive
   useEffect(() => {
       const handleOnline = () => {
           toast.info("Сеть восстановлена. Синхронизация...", { autoClose: 2000 });
@@ -186,8 +184,14 @@ const AppContent: React.FC = () => {
       // Attempt flush on mount
       api.flushQueue();
 
+      // Start Keep-Alive (Ping GAS every 4 min)
+      const keepAliveId = startKeepAlive();
+
       window.addEventListener('online', handleOnline);
-      return () => window.removeEventListener('online', handleOnline);
+      return () => {
+          window.removeEventListener('online', handleOnline);
+          clearInterval(keepAliveId);
+      };
   }, []);
 
   // Start tour ONLY if user has a grade (Modal closed) and hasn't seen it yet
@@ -236,7 +240,6 @@ const AppContent: React.FC = () => {
     return (
       <div className="flex flex-col min-h-screen relative z-10">
         <GradeSelection onSelect={(group: GradeGroup) => dispatch(setGradeGroup(group))} />
-        <ToastContainer position="bottom-right" theme="dark" toastClassName="glass-panel" />
       </div>
     );
   }

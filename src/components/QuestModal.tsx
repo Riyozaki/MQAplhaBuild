@@ -64,13 +64,6 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) {
-      document.body.classList.remove('ReactModal__Body--open');
-      document.body.style.overflow = '';
-    }
-  }, [isOpen]);
-
   // Restore cached progress with TTL cleanup
   useEffect(() => {
     if (quest && isOpen) {
