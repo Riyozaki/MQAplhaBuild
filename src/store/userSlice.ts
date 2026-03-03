@@ -12,6 +12,7 @@ import { CALENDAR_CONFIG } from './rewardsSlice';
 // Import actions from other slices for extraReducers
 import { completeQuestAction } from './actions';
 import { createGuild, guildDonate, leaveGuild, joinGuild, fetchMyGuild, contributeGuildQuest } from './guildSlice';
+import { calculateNextLevelXp, applyXpGain } from '../utils/levelUtils';
 
 const STORAGE_KEY_EMAIL = 'motiva_user_email';
 
@@ -1053,11 +1054,12 @@ const userSlice = createSlice({
 
           // Update lists
           state.currentUser.completedQuests = (state.currentUser.completedQuests || 0) + 1;
-          state.currentUser.questHistory = [...(state.currentUser.questHistory || []), historyItem];
+          if (!state.currentUser.questHistory) state.currentUser.questHistory = [];
+          state.currentUser.questHistory.push(historyItem);
           
-          const newTimers = { ...state.currentUser.activeQuestTimers };
-          delete newTimers[quest.id];
-          state.currentUser.activeQuestTimers = newTimers;
+          if (state.currentUser.activeQuestTimers) {
+              delete state.currentUser.activeQuestTimers[quest.id];
+          }
           
           state.currentUser.dailyCompletionsCount = (state.currentUser.dailyCompletionsCount || 0) + 1;
           state.currentUser.currentHp = Math.max(0, state.currentUser.currentHp - hpLost);
@@ -1065,10 +1067,8 @@ const userSlice = createSlice({
           // IMPORTANT: Update local streaks immediately for UI
           if (quest.isHabit) {
               const currentStreak = (state.currentUser.habitStreaks?.[quest.id] || 0) + 1;
-              state.currentUser.habitStreaks = { 
-                  ...(state.currentUser.habitStreaks || {}), 
-                  [quest.id]: currentStreak 
-              };
+              if (!state.currentUser.habitStreaks) state.currentUser.habitStreaks = {};
+              state.currentUser.habitStreaks[quest.id] = currentStreak;
               // Persist streaks to backend is handled in completeQuestAction thunk
           }
           
@@ -1090,21 +1090,16 @@ const userSlice = createSlice({
           }
           
           // Re-adding XP logic here since we moved the thunk
-          let newXp = (state.currentUser.currentXp || 0) + xpReward;
-          let currentLevel = state.currentUser.level || 1;
-          let nextLevelXp = state.currentUser.nextLevelXp || 100 * Math.pow(1.5, currentLevel - 1);
-          let newCoins = (state.currentUser.coins || 0) + coinsReward;
+          const { level, currentXp, nextLevelXp } = applyXpGain(
+              state.currentUser.currentXp || 0,
+              state.currentUser.level || 1,
+              xpReward
+          );
           
-          while (newXp >= nextLevelXp) {
-              newXp -= nextLevelXp;
-              currentLevel++;
-              nextLevelXp = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
-          }
-
-          state.currentUser.currentXp = newXp;
-          state.currentUser.level = currentLevel;
+          state.currentUser.currentXp = currentXp;
+          state.currentUser.level = level;
           state.currentUser.nextLevelXp = nextLevelXp;
-          state.currentUser.coins = newCoins;
+          state.currentUser.coins = (state.currentUser.coins || 0) + coinsReward;
       })
       .addCase(completeQuestAction.rejected, (state) => { state.pendingActions.completeQuest = false; })
 

@@ -6,7 +6,15 @@ import { handleApiError } from '../utils/errorHandler';
 import { audio } from '../services/audio';
 import { getTasksForQuest } from '../data';
 import { rawQuests } from '../data/defaultQuests';
-import type { RootState } from './index';
+import { calculateNextLevelXp } from '../utils/levelUtils';
+
+// Minimal interface to break circular dependency
+interface StateWithUser {
+    user: {
+        currentUser: any; // Using any to avoid importing UserProfile which might be in types.ts (safe) but to be extra safe
+        gradeGroup: string | null;
+    }
+}
 
 // Helper to get min minutes (moved from questsSlice)
 const getMinMinutes = (rarity: QuestRarity): number => {
@@ -82,7 +90,7 @@ const mapRawQuest = (q: any): Quest => {
 };
 
 export const fetchQuests = createAsyncThunk('quests/fetchQuests', async (_, { getState }) => {
-  const state = getState() as RootState;
+  const state = getState() as StateWithUser;
   const user = state.user.currentUser;
   const gradeGroup = state.user.gradeGroup;
   
@@ -127,8 +135,8 @@ export const fetchQuests = createAsyncThunk('quests/fetchQuests', async (_, { ge
     // Check completion
     if (user.questHistory) {
         const history = user.questHistory
-            .filter(h => h.questId === q.id)
-            .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            .filter((h: any) => h.questId === q.id)
+            .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
         if (history.length > 0) {
             const lastCompletion = new Date(history[0].date);
@@ -151,7 +159,7 @@ export const fetchQuests = createAsyncThunk('quests/fetchQuests', async (_, { ge
 export const completeQuestAction = createAsyncThunk(
     'quests/completeQuestAction',
     async (payload: { quest: Quest, multiplier?: number, isAutoComplete?: boolean }, { getState, rejectWithValue }) => {
-        const state = getState() as RootState;
+        const state = getState() as StateWithUser;
         const user = state.user.currentUser;
         if (!user || !user.email) return rejectWithValue("No user");
         
@@ -184,14 +192,14 @@ export const completeQuestAction = createAsyncThunk(
         // Calculate potential new levels
         let currentLevel = user.level || 1;
         let currentXp = user.currentXp || 0;
-        let nextLevelXp = user.nextLevelXp || 100 * Math.pow(1.5, currentLevel - 1);
+        let nextLevelXp = user.nextLevelXp || calculateNextLevelXp(currentLevel);
         let newXpTotal = currentXp + xpReward;
         
         // This calculation is purely for API payload; reducer does its own for state
         while (newXpTotal >= nextLevelXp) {
             newXpTotal -= nextLevelXp;
             currentLevel++;
-            nextLevelXp = Math.floor(100 * Math.pow(1.5, currentLevel - 1));
+            nextLevelXp = calculateNextLevelXp(currentLevel);
         }
 
         if (bonusName) toast.success(`Бонус класса (${bonusName}): +10%`);
