@@ -198,6 +198,12 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (!user || !user.email || !user.grade || location.pathname !== '/') return;
 
+    // Do not run tour if gradeGroup is not selected yet
+    if (!gradeGroup) {
+        setRunTour(false);
+        return;
+    }
+
     const userEmail = user.email.toLowerCase().trim();
     const storageKey = `motiva_tour_completed_${userEmail}`;
     const isLocalDone = localStorage.getItem(storageKey);
@@ -212,7 +218,7 @@ const AppContent: React.FC = () => {
         }
         setRunTour(false);
     }
-  }, [user, location.pathname]);
+  }, [user, location.pathname, gradeGroup]);
 
   const handleTourCallback = (data: CallBackProps) => {
     const { status } = data;

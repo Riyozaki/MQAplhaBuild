@@ -162,6 +162,15 @@ const mapSheetToUser = (rawData: any): UserProfile => {
         }
     }
 
+    // Normalize lastLoginDate to ISO
+    let normalizedLoginDate: string | undefined = progress.lastLoginDate;
+    if (normalizedLoginDate) {
+        const parsed = new Date(normalizedLoginDate);
+        if (!isNaN(parsed.getTime())) {
+            normalizedLoginDate = parsed.toISOString().split('T')[0];
+        }
+    }
+
     return {
         ...DEFAULT_USER_DATA,
         email: user.email,
@@ -174,7 +183,7 @@ const mapSheetToUser = (rawData: any): UserProfile => {
         coins: Number(progress.coins || progress.gold) || 0,
         currentHp: Number(progress.currentHp) || 100,
         streakDays: Number(progress.streakDays || info.dailyStreak) || 0,
-        lastLoginDate: progress.lastLoginDate,
+        lastLoginDate: normalizedLoginDate,
         totalQuestsCompleted: Number(progress.totalQuestsCompleted) || 0,
         weeklyXp: Number(progress.weeklyXp) || 0,
         weeklyXpResetDate: progress.weeklyXpResetDate,
@@ -253,6 +262,37 @@ const getTodayISO = () => {
   return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
 };
 
+function cleanupStaleQuestCache() {
+    const TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const now = Date.now();
+    
+    const keysToCheck: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('quest_progress_') || key.startsWith('quest_hints_'))) {
+            keysToCheck.push(key);
+        }
+    }
+    
+    keysToCheck.forEach(key => {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            // If timestamp exists and older than TTL - remove
+            if (parsed._timestamp && (now - parsed._timestamp) > TTL) {
+                localStorage.removeItem(key);
+            }
+            // If no timestamp (old format) and too many keys - remove
+            if (!parsed._timestamp && keysToCheck.length > 100) {
+                localStorage.removeItem(key);
+            }
+        } catch {
+            localStorage.removeItem(key); // Corrupted data
+        }
+    });
+}
+
 // --- HELPER: Process Daily Login Logic ---
 const processDailyLogin = (user: UserProfile, loginRes: any, dispatch: any): DailyRewardData | null => {
     if (!loginRes || !loginRes.success) return null;
@@ -306,6 +346,36 @@ const processDailyLogin = (user: UserProfile, loginRes: any, dispatch: any): Dai
     return reward;
 };
 
+export const setGradeGroup = createAsyncThunk(
+    'user/setGradeGroup',
+    async (gradeGroup: string, { getState }) => {
+        const state = getState() as RootState;
+        const user = state.user.currentUser;
+        if (!user || !user.email) return null;
+
+        const gradeMap: Record<string, number> = {
+            grade5: 5, grade67: 6, grade89: 8, grade1011: 10
+        };
+        const newGrade = gradeMap[gradeGroup] || 7;
+
+        // 1. Update Local Storage
+        const email = user.email.toLowerCase().trim();
+        localStorage.setItem(`motiva_grade_group_${email}`, gradeGroup);
+
+        // 2. Sync with Server
+        try {
+            await api.updateProfile({ 
+                email: user.email, 
+                grade: newGrade 
+            });
+        } catch (e) {
+            console.warn("Failed to sync grade with server", e);
+        }
+
+        return { gradeGroup, grade: newGrade };
+    }
+);
+
 export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }) => {
     const email = localStorage.getItem(STORAGE_KEY_EMAIL);
     if (!email) return null;
@@ -352,6 +422,7 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
              }
         }
         
+        cleanupStaleQuestCache();
         return { user: normalizedUser, reward };
     } catch (e) {
         console.error("Auth Init Failed:", e);
@@ -431,7 +502,7 @@ export const registerLocal = createAsyncThunk(
         username: payload.username,
         grade: payload.grade || 7,
         hasParentalConsent: payload.hasConsent,
-        lastLoginDate: new Date().toDateString()
+        lastLoginDate: new Date().toISOString().split('T')[0]
     } as UserProfile;
     localStorage.setItem(STORAGE_KEY_EMAIL, newUserState.email);
     analytics.track('register', newUserState, { email: payload.email });
@@ -847,22 +918,17 @@ const userSlice = createSlice({
             state.currentUser.lastCampaignAdvanceDate = undefined;
         }
     },
-    setGradeGroup: (state, action: PayloadAction<string>) => {
-        state.gradeGroup = action.payload;
-        const gradeMap: Record<string, number> = {
-            grade5: 5, grade67: 6, grade89: 8, grade1011: 10
-        };
-        const email = state.currentUser?.email;
-        if (email) {
-            localStorage.setItem(`motiva_grade_group_${email.toLowerCase().trim()}`, action.payload);
-        }
-        if (state.currentUser) {
-            state.currentUser.grade = gradeMap[action.payload] || 7;
-        }
-    }
   },
   extraReducers: (builder) => {
     builder
+      .addCase(setGradeGroup.fulfilled, (state, action) => {
+          if (action.payload) {
+              state.gradeGroup = action.payload.gradeGroup;
+              if (state.currentUser) {
+                  state.currentUser.grade = action.payload.grade;
+              }
+          }
+      })
       .addCase(initAuth.pending, (state) => { state.pendingActions.auth = true; })
       .addCase(initAuth.fulfilled, (state, action) => {
         state.pendingActions.auth = false;
@@ -1122,6 +1188,6 @@ export const selectIsPending = (key: keyof PendingActions) => (state: RootState)
 export const { 
     setUser, clearUser, submitSurvey, setThemeColor, 
     adminSetDay, adminCompleteDay, adminResetCampaign, closeDailyRewardModal,
-    popRewardAnimation, setPendingSyncCount, setGradeGroup
+    popRewardAnimation, setPendingSyncCount
 } = userSlice.actions;
 export default userSlice.reducer;

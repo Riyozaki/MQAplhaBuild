@@ -248,8 +248,12 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
 
           setCompleted(true);
           dispatch(markQuestCompleted(quest.id));
-          dispatch(fetchQuests());
           dispatch(checkAchievements());
+          
+          // Delay server fetch to avoid race condition
+          setTimeout(() => {
+              dispatch(fetchQuests());
+          }, 3000);
           
           if (hintsUsed > 0) {
               toast.info(`Использовано подсказок: ${hintsUsed} (−${hintsUsed * 25}% награды)`);

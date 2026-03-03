@@ -365,7 +365,7 @@ const request = async <T = any>(action: string, data: any = {}, method: 'POST' |
 export const startKeepAlive = () => {
     const id = setInterval(() => {
         fetch(API_URL + '?action=ping').catch(() => {});
-    }, 240000); // 4 min
+    }, 180000); // 3 min instead of 4
     return id;
 };
 

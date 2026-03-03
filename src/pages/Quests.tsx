@@ -1,25 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
-import { Coins, Star, Loader2, Clock, ArrowRight, Filter, Trophy, Flame, Gem, Crown } from 'lucide-react';
+import { fetchQuests } from '../store/questsSlice';
+import { Coins, Star, Loader2, Trophy } from 'lucide-react';
 import QuestModal from '../components/QuestModal';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useLocation } from 'react-router-dom';
-import { getQuestsByGrade, getCategoriesForGrade, getTasksForQuest, Quest as GradeQuest, QuestRarity, RARITY_CONFIG } from '../data';
-import { Quest } from '../types';
-
+import { Quest, QuestRarity } from '../types';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 const Quests: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const gradeGroup = useSelector((state: RootState) => state.user.gradeGroup);
+  const { list: quests, status } = useSelector((state: RootState) => state.quests);
   const { user } = useAuth();
   const location = useLocation();
   
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [activeRarity, setActiveRarity] = useState<QuestRarity | 'all'>('all');
+
+  useEffect(() => {
+    if (status === 'idle') {
+      dispatch(fetchQuests());
+    }
+  }, [status, dispatch]);
 
   // FIX: Close modal on ANY route change (prevents navigation freeze)
   useEffect(() => {
@@ -33,14 +38,22 @@ const Quests: React.FC = () => {
 
   if (!user) return null;
 
-  // Get quests for selected grade group
-  const gradeGroupKey = (gradeGroup || 'grade67') as any;
-  const rawGradeQuests = getQuestsByGrade(gradeGroupKey);
-  const allQuests = rawGradeQuests.map(q => ({
-      ...q,
-      rarity: (q.rarity.charAt(0).toUpperCase() + q.rarity.slice(1)) as QuestRarity
-  }));
-  const categories = getCategoriesForGrade(gradeGroupKey);
+  if (status === 'loading' && quests.length === 0) {
+      return (
+          <div className="flex justify-center items-center h-96">
+              <Loader2 className="animate-spin text-primary-500" size={48} />
+          </div>
+      );
+  }
+
+  // Filter out habits and story quests for the Quest Book
+  const questBookQuests = quests.filter(q => !q.isHabit && q.type !== 'story');
+
+  // Derive categories from quests
+  const categories = useMemo(() => {
+      const cats = new Set(questBookQuests.map(q => q.category));
+      return Array.from(cats).map(c => ({ key: c, label: c.charAt(0).toUpperCase() + c.slice(1) }));
+  }, [questBookQuests]);
 
   // Track completed quests from user history
   const completedQuestIds = new Set(
@@ -48,7 +61,7 @@ const Quests: React.FC = () => {
   );
 
   // Filter quests
-  let filteredQuests = allQuests;
+  let filteredQuests = questBookQuests;
   if (activeCategory !== 'all') {
     filteredQuests = filteredQuests.filter(q => q.category === activeCategory);
   }
@@ -59,34 +72,13 @@ const Quests: React.FC = () => {
   // Sort: incomplete first, then by rarity (legendary > epic > rare > common)
   const rarityOrder: Record<string, number> = { Legendary: 4, Epic: 3, Rare: 2, Common: 1 };
   const sortedQuests = [...filteredQuests].sort((a, b) => {
-    const aCompleted = completedQuestIds.has(a.id);
-    const bCompleted = completedQuestIds.has(b.id);
+    const aCompleted = completedQuestIds.has(String(a.id));
+    const bCompleted = completedQuestIds.has(String(b.id));
     if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
-    return (rarityOrder[b.rarity] || 0) - (rarityOrder[a.rarity] || 0);
+    return (rarityOrder[b.rarity || 'Common'] || 0) - (rarityOrder[a.rarity || 'Common'] || 0);
   });
 
-  // Map grade quest to format compatible with QuestModal
-  const openQuest = (quest: GradeQuest) => {
-    const tasks = getTasksForQuest(quest.id) || [];
-    const mapped: Quest = {
-      id: quest.id,
-      title: quest.title,
-      description: quest.description,
-      category: quest.category,
-      rarity: quest.rarity, // Already Capitalized
-      xp: quest.xpReward,
-      coins: quest.coinReward,
-      completed: completedQuestIds.has(quest.id),
-      type: 'quest',
-      minMinutes: quest.rarity === 'Legendary' ? 60 : quest.rarity === 'Epic' ? 30 : quest.rarity === 'Rare' ? 15 : 5,
-      tasks: tasks,
-      difficulty: quest.rarity === 'Legendary' ? 'Hard' : quest.rarity === 'Epic' ? 'Hard' : quest.rarity === 'Rare' ? 'Medium' : 'Easy',
-      isHabit: false
-    };
-    setSelectedQuest(mapped);
-  };
-
-  const getRarityStyles = (rarity: string) => {
+  const getRarityStyles = (rarity: string = 'Common') => {
     switch (rarity) {
       case 'Legendary':
         return {
@@ -187,7 +179,7 @@ const Quests: React.FC = () => {
         >
           {sortedQuests.map((quest) => {
             const styles = getRarityStyles(quest.rarity);
-            const isCompleted = completedQuestIds.has(quest.id);
+            const isCompleted = completedQuestIds.has(String(quest.id));
 
             return (
               <motion.div
@@ -196,7 +188,7 @@ const Quests: React.FC = () => {
                 whileHover={!isCompleted ? { scale: 1.02, y: -3 } : {}}
                 transition={{ duration: 0.2 }}
                 key={quest.id}
-                onClick={() => !isCompleted && openQuest(quest)}
+                onClick={() => !isCompleted && setSelectedQuest(quest)}
                 className={`
                   group relative overflow-hidden rounded-xl border-2 cursor-pointer transition-all duration-300
                   ${styles.border} ${styles.glow} ${isCompleted ? 'opacity-50 cursor-default' : ''}
@@ -210,8 +202,8 @@ const Quests: React.FC = () => {
                   <p className="text-slate-400 text-sm mb-4 line-clamp-2">{quest.description}</p>
                   <div className="flex items-center justify-between">
                     <div className="flex gap-3 text-xs font-bold">
-                      <span className="flex items-center text-amber-400"><Coins size={14} className="mr-1" /> {quest.coinReward}</span>
-                      <span className="flex items-center text-purple-400"><Star size={14} className="mr-1" /> {quest.xpReward}</span>
+                      <span className="flex items-center text-amber-400"><Coins size={14} className="mr-1" /> {quest.coins}</span>
+                      <span className="flex items-center text-purple-400"><Star size={14} className="mr-1" /> {quest.xp}</span>
                     </div>
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${styles.textColor || 'text-slate-400'}`}>
                       {quest.rarity}

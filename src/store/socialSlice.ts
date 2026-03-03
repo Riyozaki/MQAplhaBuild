@@ -49,6 +49,23 @@ export const fetchLeaderboard = createAsyncThunk(
       console.warn('[Leaderboard] API error, using fallback:', error.message);
       return rejectWithValue(error.message || 'Ошибка загрузки');
     }
+  },
+  {
+    condition: (type, { getState }) => {
+      const state = getState() as any;
+      const social = state.social as SocialState;
+      const now = Date.now();
+      // TTL 5 minutes (300000 ms)
+      if (
+        social.leaderboardType === type &&
+        social.leaderboard.length > 0 &&
+        social.lastFetched &&
+        (now - social.lastFetched < 300000)
+      ) {
+        return false; // Cancel fetch if data is fresh
+      }
+      return true;
+    }
   }
 );
 

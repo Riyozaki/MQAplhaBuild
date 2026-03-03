@@ -175,6 +175,7 @@ export interface UserProfile {
   guildId?: string;
   guildName?: string;
   guildRole?: GuildRole;
+  guildXPContributed?: number;
 
   // Story Mode
   lastCampaignAdvanceDate?: string; // ISO Date string of last advancement

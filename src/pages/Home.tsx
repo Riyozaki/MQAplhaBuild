@@ -13,6 +13,7 @@ import { Home as HomeIcon, Map as MapIcon, Shield, Loader2 } from 'lucide-react'
 import LandingPage from '../components/LandingPage';
 import DashboardView from '../components/dashboard/DashboardView';
 import CampaignView from '../components/dashboard/CampaignView';
+import { useLocation } from 'react-router-dom';
 
 import ErrorBoundary from '../components/ErrorBoundary';
 
@@ -53,12 +54,18 @@ const StoryDashboard: React.FC = () => {
   const [questMultiplier, setQuestMultiplier] = useState(1);
   const [isBossModalOpen, setIsBossModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'dashboard' | 'campaign'>('dashboard');
+  const location = useLocation();
 
   useEffect(() => {
     if (status === 'idle') {
       dispatch(fetchQuests());
     }
   }, [status, dispatch]);
+
+  useEffect(() => {
+      setSelectedQuest(null);
+      setIsBossModalOpen(false);
+  }, [location.pathname]);
 
   if (status === 'loading') {
       return (
@@ -80,6 +87,7 @@ const StoryDashboard: React.FC = () => {
   const currentStory = CAMPAIGN_DATA.find(d => d.day === currentDayNum) || CAMPAIGN_DATA[0];
   const storyQuestIds = currentStory.questIds.map(String);
   const storyQuests = quests.filter(q => storyQuestIds.includes(String(q.id)));
+  const hasCampaignQuests = storyQuests.length > 0;
   const completedCount = storyQuests.filter(q => q.completed).length;
   const totalCount = storyQuests.length;
 
@@ -123,18 +131,32 @@ const StoryDashboard: React.FC = () => {
           
           {viewMode === 'campaign' && (
               <motion.div key="campaign" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
-                  <CampaignView 
-                    currentDayNum={currentDayNum}
-                    currentStory={currentStory}
-                    storyQuests={storyQuests}
-                    completedCount={completedCount}
-                    totalCount={totalCount}
-                    onQuestSelect={(q) => handleQuestOpen(q)}
-                    onBossOpen={() => setIsBossModalOpen(true)}
-                    onAdvanceDay={() => dispatch(advanceCampaignDay())}
-                    isDayComplete={user.campaign?.isDayComplete}
-                    user={user}
-                  />
+                  {hasCampaignQuests ? (
+                      <CampaignView 
+                        currentDayNum={currentDayNum}
+                        currentStory={currentStory}
+                        storyQuests={storyQuests}
+                        completedCount={completedCount}
+                        totalCount={totalCount}
+                        onQuestSelect={(q) => handleQuestOpen(q)}
+                        onBossOpen={() => setIsBossModalOpen(true)}
+                        onAdvanceDay={() => dispatch(advanceCampaignDay())}
+                        isDayComplete={user.campaign?.isDayComplete}
+                        user={user}
+                      />
+                  ) : (
+                      <div className="text-center py-16 bg-slate-900/50 rounded-3xl border border-slate-700/50">
+                          <p className="text-slate-400 text-lg mb-4">
+                              Кампания пока не адаптирована для твоего класса
+                          </p>
+                          <button 
+                              onClick={() => setViewMode('dashboard')}
+                              className="px-6 py-3 bg-primary-600 text-white rounded-xl font-bold hover:bg-primary-500 transition-colors"
+                          >
+                              Перейти в Штаб
+                          </button>
+                      </div>
+                  )}
               </motion.div>
           )}
       </AnimatePresence>
@@ -161,7 +183,13 @@ const StoryDashboard: React.FC = () => {
 
 const Home: React.FC = () => {
   const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <StoryDashboard /> : <LandingPage />;
+  if (isAuthenticated) return <StoryDashboard />;
+  
+  return (
+      <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-primary-500" size={48} /></div>}>
+          <LandingPage />
+      </Suspense>
+  );
 };
 
 export default Home;
