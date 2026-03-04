@@ -63,6 +63,14 @@ export const GRADE_GROUPS: GradeGroupInfo[] = [
   },
 ];
 
+export const gradeToGroup = (grade: number): GradeGroup => {
+    if (grade === 5) return 'grade5';
+    if (grade >= 6 && grade <= 7) return 'grade67';
+    if (grade >= 8 && grade <= 9) return 'grade89';
+    if (grade >= 10 && grade <= 11) return 'grade1011';
+    return 'grade67'; // Default fallback
+};
+
 export const RARITY_CONFIG: Record<QuestRarity, { label: string; color: string; bgColor: string; borderColor: string }> = {
   Common: {
     label: 'Обычный',

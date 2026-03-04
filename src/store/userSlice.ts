@@ -13,6 +13,7 @@ import { CALENDAR_CONFIG } from './rewardsSlice';
 import { completeQuestAction } from './actions';
 import { createGuild, guildDonate, leaveGuild, joinGuild, fetchMyGuild, contributeGuildQuest } from './guildSlice';
 import { calculateNextLevelXp, applyXpGain } from '../utils/levelUtils';
+import { gradeToGroup } from '../data/questTypes';
 
 const STORAGE_KEY_EMAIL = 'motiva_user_email';
 
@@ -295,7 +296,7 @@ function cleanupStaleQuestCache() {
 }
 
 // --- HELPER: Process Daily Login Logic ---
-const processDailyLogin = (user: UserProfile, loginRes: any, dispatch: any): DailyRewardData | null => {
+const processDailyLogin = (user: UserProfile, loginRes: any): DailyRewardData | null => {
     if (!loginRes || !loginRes.success) return null;
 
     const todayStr = getTodayISO();
@@ -341,10 +342,7 @@ const processDailyLogin = (user: UserProfile, loginRes: any, dispatch: any): Dai
             }
     }
 
-    const reward = { coins: coinsEarned, xp: xpEarned, streak: user.streakDays, bonusMultiplier };
-    dispatch(addExperience({ xp: xpEarned, coins: coinsEarned }));
-    
-    return reward;
+    return { coins: coinsEarned, xp: xpEarned, streak: user.streakDays, bonusMultiplier };
 };
 
 export const setGradeGroup = createAsyncThunk(
@@ -387,6 +385,10 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
         try {
             const cachedUser = mapSheetToUser(cached);
             dispatch({ type: 'user/setUser', payload: cachedUser });
+            // Fix: Restore gradeGroup immediately
+            const gradeGroup = localStorage.getItem(`motiva_grade_group_${email}`) 
+                || gradeToGroup(cachedUser.grade || 7);
+            dispatch({ type: 'user/setGradeGroupImmediate', payload: gradeGroup });
         } catch (e) { console.warn("Cache parse failed", e); }
     }
 
@@ -413,7 +415,19 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
         let reward: DailyRewardData | null = null;
         
         if (shouldCallLogin && loginRes) {
-            reward = processDailyLogin(normalizedUser, loginRes, dispatch);
+            reward = processDailyLogin(normalizedUser, loginRes);
+            if (reward) {
+                const { level, currentXp, nextLevelXp } = applyXpGain(normalizedUser.currentXp, normalizedUser.level, reward.xp);
+                normalizedUser.currentXp = currentXp;
+                normalizedUser.level = level;
+                normalizedUser.nextLevelXp = nextLevelXp;
+                normalizedUser.coins += reward.coins;
+                normalizedUser.totalCoinsEarned = (normalizedUser.totalCoinsEarned || 0) + reward.coins;
+                
+                api.updateProgress(normalizedUser.email, {
+                    currentXp, level, coins: normalizedUser.coins, totalCoinsEarned: normalizedUser.totalCoinsEarned
+                }).catch(console.warn);
+            }
         } else {
              // Already logged in today locally
              // We still want to ensure normalizedUser has correct date if it came from sheet as old
@@ -463,7 +477,19 @@ export const loginDemo = createAsyncThunk('user/loginDemo', async (_, { dispatch
         
         // Simulate daily login for demo
         const loginRes = { success: true, streakDays: (normalizedUser.streakDays || 0) + 1, alreadyLoggedIn: false };
-        const reward = processDailyLogin(normalizedUser, loginRes, dispatch);
+        const reward = processDailyLogin(normalizedUser, loginRes);
+        if (reward) {
+             const { level, currentXp, nextLevelXp } = applyXpGain(normalizedUser.currentXp, normalizedUser.level, reward.xp);
+             normalizedUser.currentXp = currentXp;
+             normalizedUser.level = level;
+             normalizedUser.nextLevelXp = nextLevelXp;
+             normalizedUser.coins += reward.coins;
+             normalizedUser.totalCoinsEarned = (normalizedUser.totalCoinsEarned || 0) + reward.coins;
+             
+             api.updateProgress(normalizedUser.email, {
+                 currentXp, level, coins: normalizedUser.coins, totalCoinsEarned: normalizedUser.totalCoinsEarned
+             }).catch(console.warn);
+        }
 
         return { user: normalizedUser, reward };
     } catch (e: any) {
@@ -487,7 +513,19 @@ export const loginLocal = createAsyncThunk(
     localStorage.setItem(STORAGE_KEY_EMAIL, normalizedUser.email);
     
     const loginRes = await api.dailyLogin(normalizedUser.email);
-    const reward = processDailyLogin(normalizedUser, loginRes, dispatch);
+    const reward = processDailyLogin(normalizedUser, loginRes);
+    if (reward) {
+         const { level, currentXp, nextLevelXp } = applyXpGain(normalizedUser.currentXp, normalizedUser.level, reward.xp);
+         normalizedUser.currentXp = currentXp;
+         normalizedUser.level = level;
+         normalizedUser.nextLevelXp = nextLevelXp;
+         normalizedUser.coins += reward.coins;
+         normalizedUser.totalCoinsEarned = (normalizedUser.totalCoinsEarned || 0) + reward.coins;
+         
+         api.updateProgress(normalizedUser.email, {
+             currentXp, level, coins: normalizedUser.coins, totalCoinsEarned: normalizedUser.totalCoinsEarned
+         }).catch(console.warn);
+    }
 
     return { user: normalizedUser, reward };
   }
@@ -900,6 +938,9 @@ const userSlice = createSlice({
     setPendingSyncCount: (state, action: PayloadAction<number>) => {
         state.pendingSyncCount = action.payload;
     },
+    setGradeGroupImmediate: (state, action: PayloadAction<string | null>) => {
+        state.gradeGroup = action.payload;
+    },
     adminSetDay: (state, action: PayloadAction<number>) => {
         if (state.currentUser && state.currentUser.campaign) {
             state.currentUser.campaign.currentDay = action.payload;
@@ -938,7 +979,8 @@ const userSlice = createSlice({
             state.dailyRewardPopup = action.payload.reward;
             const email = action.payload.user.email?.toLowerCase().trim();
             if (email) {
-                state.gradeGroup = localStorage.getItem(`motiva_grade_group_${email}`) || null;
+                state.gradeGroup = localStorage.getItem(`motiva_grade_group_${email}`) 
+                    || gradeToGroup(action.payload.user.grade || 7);
             }
         }
         state.loading = false;
@@ -958,7 +1000,8 @@ const userSlice = createSlice({
           state.dailyRewardPopup = action.payload.reward;
           const email = action.payload.user.email?.toLowerCase().trim();
           if (email) {
-              state.gradeGroup = localStorage.getItem(`motiva_grade_group_${email}`) || null;
+              state.gradeGroup = localStorage.getItem(`motiva_grade_group_${email}`) 
+                  || gradeToGroup(action.payload.user.grade || 7);
           }
           state.nextRegenTime = Date.now() + 60 * 1000;
       })
@@ -967,7 +1010,8 @@ const userSlice = createSlice({
           state.dailyRewardPopup = action.payload.reward;
           const email = action.payload.user.email?.toLowerCase().trim();
           if (email) {
-              state.gradeGroup = localStorage.getItem(`motiva_grade_group_${email}`) || null;
+              state.gradeGroup = localStorage.getItem(`motiva_grade_group_${email}`) 
+                  || gradeToGroup(action.payload.user.grade || 7);
           }
           state.nextRegenTime = Date.now() + 60 * 1000;
       })
