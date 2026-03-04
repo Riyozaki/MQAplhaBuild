@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { RootState, AppDispatch } from '../store';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import LoadingOverlay from './LoadingOverlay';
+import { CATEGORY_TRANSLATIONS } from '../data/questTypes';
 
 // Import task components
 import QuizTask from './tasks/QuizTask';
@@ -334,7 +335,9 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
              </button>
              
              <div className="flex flex-wrap items-center gap-2 mb-2 pr-8">
-                 <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest">{displayQuest.category}</span>
+                 <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest">
+                     {CATEGORY_TRANSLATIONS[displayQuest.category]?.icon} {CATEGORY_TRANSLATIONS[displayQuest.category]?.label || displayQuest.category}
+                 </span>
                  <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest">{displayQuest.rarity}</span>
                  {multiplier > 1 && (
                      <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest flex items-center">

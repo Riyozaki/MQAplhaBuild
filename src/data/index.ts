@@ -60,14 +60,6 @@ export function getCategoriesForGrade(gradeGroup: GradeGroup): { key: string; la
   return categories;
 }
 
-/** Определить GradeGroup по номеру класса */
-export function gradeToGroup(grade: number): GradeGroup {
-  if (grade === 5) return 'grade5';
-  if (grade <= 7) return 'grade67';
-  if (grade <= 9) return 'grade89';
-  return 'grade1011';
-}
-
 /** Получить интерактивные задания для квеста по его id */
 export function getTasksForQuest(questId: string): any[] | null {
   return allTaskMaps[questId] || null;

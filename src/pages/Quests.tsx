@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLocation } from 'react-router-dom';
 import { Quest, QuestRarity } from '../types';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { CATEGORY_TRANSLATIONS } from '../data/questTypes';
 
 const Quests: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -51,8 +52,14 @@ const Quests: React.FC = () => {
 
   // Derive categories from quests
   const categories = useMemo(() => {
-      const cats = new Set(questBookQuests.map(q => q.category));
-      return Array.from(cats).map(c => ({ key: c, label: c.charAt(0).toUpperCase() + c.slice(1) }));
+      const cats = Array.from(new Set(questBookQuests.map(q => q.category)));
+      return cats.map(c => {
+          const translation = CATEGORY_TRANSLATIONS[c];
+          return { 
+              key: c, 
+              label: translation ? `${translation.icon} ${translation.label}` : (c.charAt(0).toUpperCase() + c.slice(1)) 
+          };
+      });
   }, [questBookQuests]);
 
   // Track completed quests from user history

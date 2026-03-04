@@ -1,8 +1,8 @@
 // Типы для системы квестов MotivaQuest
 
-import { QuestRarity } from '../types';
+import { QuestRarity, GradeGroup } from '../types';
 
-export type GradeGroup = 'grade5' | 'grade67' | 'grade89' | 'grade1011';
+export type { GradeGroup };
 
 export interface QuestTemplate {
   id: string;
@@ -69,6 +69,37 @@ export const gradeToGroup = (grade: number): GradeGroup => {
     if (grade >= 8 && grade <= 9) return 'grade89';
     if (grade >= 10 && grade <= 11) return 'grade1011';
     return 'grade67'; // Default fallback
+};
+
+export const getHeroTitle = (grade: number): string => {
+    if (grade === 5) return 'Герой-Авантюрист';
+    if (grade >= 6 && grade <= 7) return 'Герой-Исследователь';
+    if (grade >= 8 && grade <= 9) return 'Герой-Страж';
+    if (grade >= 10 && grade <= 11) return 'Герой-Рыцарь';
+    return 'Герой-Путешественник';
+};
+
+export const CATEGORY_TRANSLATIONS: Record<string, { label: string; icon: string }> = {
+    math: { label: 'Математика', icon: '🔢' },
+    russian: { label: 'Русский язык', icon: '📝' },
+    literature: { label: 'Литература', icon: '📚' },
+    english: { label: 'Английский', icon: '🇬🇧' },
+    history: { label: 'История', icon: '⚔️' },
+    biology: { label: 'Биология', icon: '🌿' },
+    geography: { label: 'География', icon: '🌍' },
+    physics: { label: 'Физика', icon: '⚡' },
+    chemistry: { label: 'Химия', icon: '🧪' },
+    social: { label: 'Общество', icon: '🤝' },
+    sport: { label: 'Спорт', icon: '💪' },
+    art: { label: 'Искусство', icon: '🎨' },
+    music: { label: 'Музыка', icon: '🎵' },
+    tech: { label: 'Технологии', icon: '💻' },
+    it: { label: 'IT / Информатика', icon: '💻' },
+    finance: { label: 'Финансы', icon: '💰' },
+    ecology: { label: 'Экология', icon: '🌱' },
+    self: { label: 'Саморазвитие', icon: '✨' },
+    science: { label: 'Наука', icon: '🔬' },
+    lang: { label: 'Языки', icon: '🗣️' }
 };
 
 export const RARITY_CONFIG: Record<QuestRarity, { label: string; color: string; bgColor: string; borderColor: string }> = {

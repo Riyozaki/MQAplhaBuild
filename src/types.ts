@@ -56,6 +56,8 @@ export type QuestCategory =
 
 export type HeroClass = 'warrior' | 'mage' | 'ranger' | 'healer';
 
+export type GradeGroup = 'grade5' | 'grade67' | 'grade89' | 'grade1011';
+
 export interface Quest {
   id: number | string;
   title: string;
@@ -134,6 +136,7 @@ export interface UserProfile {
   avatar: string; 
   level: number;
   grade?: number; 
+  gradeGroup?: GradeGroup;
   currentXp: number;
   nextLevelXp: number;
   coins: number;

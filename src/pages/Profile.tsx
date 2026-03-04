@@ -2,9 +2,10 @@ import React, { useState, useRef, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Award, Zap, Coins, CheckCircle, Sword, Edit2, Shield, Heart, Target, Sparkles, Map, Package, Save, TrendingUp, Calendar, Palette, History, Share2, Download, Upload, User, Crown, AlertCircle, Ghost } from 'lucide-react';
 import { RootState, AppDispatch } from '../store';
-import { updateUserProfile, equipSkinAction, importSaveData, setThemeColor, changeHeroClass, selectIsPending } from '../store/userSlice';
+import { updateUserProfile, equipSkinAction, importSaveData, setThemeColor, changeHeroClass, selectIsPending, setGradeGroup } from '../store/userSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AVATAR_OPTIONS, PREMIUM_SKINS, getAvatarData } from '../data/avatars';
+import { GRADE_GROUPS, getHeroTitle } from '../data/questTypes';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -20,7 +21,7 @@ import {
   ChartData
 } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
-import { ThemeColor, HeroClass } from '../types';
+import { ThemeColor, HeroClass, GradeGroup } from '../types';
 import { toast } from 'react-toastify';
 import LoadingOverlay from '../components/LoadingOverlay';
 
@@ -65,6 +66,7 @@ const Profile: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(user?.username || '');
   const [showClassSelection, setShowClassSelection] = useState(false);
+  const [showGradeSelection, setShowGradeSelection] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Chart Data Calculation ---
@@ -201,6 +203,16 @@ const Profile: React.FC = () => {
       }
   };
 
+  const handleGradeSelect = async (group: GradeGroup) => {
+      try {
+          await dispatch(setGradeGroup(group)).unwrap();
+          setShowGradeSelection(false);
+          toast.success("Класс изменен! Квесты обновлены.");
+      } catch (e) {
+          toast.error("Ошибка при смене класса");
+      }
+  };
+
   const handleExportData = () => {
     const dataStr = JSON.stringify(user, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -262,7 +274,10 @@ const Profile: React.FC = () => {
                         <button onClick={handleSave} className="bg-green-600 px-4 rounded text-white">OK</button>
                     </div>
                 ) : (
-                    <h1 className="text-3xl md:text-4xl font-bold text-white mb-2 rpg-font break-all">{user.username}</h1>
+                    <>
+                        <h1 className="text-3xl md:text-4xl font-bold text-white mb-1 rpg-font break-all">{user.username}</h1>
+                        <div className="text-slate-400 text-sm font-bold mb-4">{getHeroTitle(user.grade || 5)}</div>
+                    </>
                 )}
                 
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mb-6">
@@ -280,6 +295,13 @@ const Profile: React.FC = () => {
                         className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center border transition-all hover:scale-105 ${currentHeroClass ? 'bg-purple-900/30 text-purple-300 border-purple-500/30' : 'bg-slate-800 text-slate-400 border-slate-600'}`}
                     >
                         <Crown size={12} className="mr-1" /> {currentHeroClass ? currentHeroClass.name : 'Выбрать Класс'}
+                    </button>
+                    {/* Grade Badge */}
+                    <button 
+                        onClick={() => setShowGradeSelection(!showGradeSelection)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center border transition-all hover:scale-105 bg-blue-900/30 text-blue-300 border-blue-500/30`}
+                    >
+                        <Target size={12} className="mr-1" /> {user.grade || 5} Класс
                     </button>
                 </div>
 
@@ -312,6 +334,38 @@ const Profile: React.FC = () => {
                                                 <div className="text-[10px] text-slate-400">{cls.bonus}</div>
                                             </div>
                                             {user.heroClass === cls.id && <CheckCircle className="ml-auto text-purple-500" size={16} />}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Grade Selection Area */}
+                <AnimatePresence>
+                    {showGradeSelection && (
+                        <motion.div 
+                            initial={{ height: 0, opacity: 0 }} 
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="w-full mb-6 overflow-hidden"
+                        >
+                            <div className="bg-slate-900/80 border border-slate-700 rounded-xl p-4">
+                                <h4 className="text-white font-bold mb-3">Выберите класс обучения</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {GRADE_GROUPS.map(group => (
+                                        <button
+                                            key={group.id}
+                                            onClick={() => handleGradeSelect(group.id)}
+                                            className={`p-3 rounded-lg border text-left flex items-center gap-3 transition-all ${user.gradeGroup === group.id ? 'bg-blue-900/20 border-blue-500 ring-1 ring-blue-500' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'}`}
+                                        >
+                                            <div className="text-2xl">{group.icon}</div>
+                                            <div>
+                                                <div className="font-bold text-slate-200 text-sm">{group.label}</div>
+                                                <div className="text-[10px] text-slate-400">{group.description}</div>
+                                            </div>
+                                            {user.gradeGroup === group.id && <CheckCircle className="ml-auto text-blue-500" size={16} />}
                                         </button>
                                     ))}
                                 </div>
