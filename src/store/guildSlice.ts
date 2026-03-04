@@ -6,6 +6,7 @@ import { toast } from 'react-toastify';
 interface GuildState {
   guild: GuildData | null;
   guildsList: GuildSummary[];
+  lastGuildsFetch: number; // v3.3: Caching
   guildLeaderboard: GuildLeaderboardEntry[];
   chat: GuildMessage[];
   status: 'idle' | 'loading' | 'failed';
@@ -15,6 +16,7 @@ interface GuildState {
 const initialState: GuildState = {
   guild: null,
   guildsList: [],
+  lastGuildsFetch: 0,
   guildLeaderboard: [],
   chat: [],
   status: 'idle',
@@ -33,7 +35,15 @@ export const fetchMyGuild = createAsyncThunk(
 
 export const fetchGuildsList = createAsyncThunk(
   'guild/fetchGuildsList',
-  async () => {
+  async (force: boolean = false, { getState }) => {
+    const state = (getState() as any).guild as GuildState;
+    const now = Date.now();
+
+    // v3.3: Cache for 2 minutes to prevent constant reloading
+    if (!force && state.guildsList.length > 0 && (now - state.lastGuildsFetch < 120000)) {
+        return state.guildsList;
+    }
+
     const response = await api.getGuildsList();
     return response.data;
   }
@@ -61,8 +71,18 @@ export const createGuild = createAsyncThunk(
     try {
       const response = await api.createGuild(payload.email, payload.name, payload.description, payload.emblem, payload.isOpen);
       if (response.success) {
-          // Toast is handled in the component
+          // v3.3: Fix for openness - force update settings if it should be closed
+          if (payload.isOpen === false) {
+             try {
+                 await api.updateGuildSettings(payload.email, { isOpen: false });
+             } catch (e) {
+                 console.warn("Failed to enforce closed guild status", e);
+             }
+          }
+
           dispatch(fetchMyGuild(payload.email));
+          // Force refresh list to show new guild
+          dispatch(fetchGuildsList(true));
           return response;
       } else {
           throw new Error(response.message || 'Failed to create guild');
@@ -285,8 +305,17 @@ const guildSlice = createSlice({
         state.error = action.error.message || 'Failed to fetch guild';
       })
       // Fetch Guilds List
+      .addCase(fetchGuildsList.pending, (state) => {
+        state.status = 'loading';
+      })
       .addCase(fetchGuildsList.fulfilled, (state, action) => {
+        state.status = 'idle';
         state.guildsList = action.payload;
+        state.lastGuildsFetch = Date.now();
+      })
+      .addCase(fetchGuildsList.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.error.message || 'Failed to fetch guilds list';
       })
       // Fetch Leaderboard
       .addCase(fetchGuildLeaderboard.pending, (state) => {

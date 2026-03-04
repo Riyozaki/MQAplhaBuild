@@ -72,6 +72,7 @@ export interface Quest {
   type: 'daily' | 'story' | 'quest'; 
   isHabit?: boolean; // New: Distinguishes routine tasks from random challenges
   gradeRange?: [number, number]; 
+  gradeGroup?: GradeGroup;
   minMinutes: number; 
 }
 

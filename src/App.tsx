@@ -184,6 +184,9 @@ const AppContent: React.FC = () => {
       // Attempt flush on mount
       api.flushQueue();
 
+      // v3.3: Прогреваем GAS сразу при загрузке (параллельно с initAuth)
+      fetch(api.API_URL + '?action=ping').catch(() => {});
+
       // Start Keep-Alive (Ping GAS every 4 min)
       const keepAliveId = startKeepAlive();
 

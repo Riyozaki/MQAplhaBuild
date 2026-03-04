@@ -379,13 +379,12 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
     const email = localStorage.getItem(STORAGE_KEY_EMAIL);
     if (!email) return null;
 
-    // 1. Optimistic UI: Show cached data immediately
+    // 1. Optimistic UI: Показываем кэш МГНОВЕННО пока сервер отвечает
     const cached = getCachedResponse('getAllUserData', email);
     if (cached) {
         try {
             const cachedUser = mapSheetToUser(cached);
             dispatch({ type: 'user/setUser', payload: cachedUser });
-            // Fix: Restore gradeGroup immediately
             const gradeGroup = localStorage.getItem(`motiva_grade_group_${email}`) 
                 || gradeToGroup(cachedUser.grade || 7);
             dispatch({ type: 'user/setGradeGroupImmediate', payload: gradeGroup });
@@ -393,19 +392,9 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
     }
 
     try {
-        const todayStr = getTodayISO();
-        const cachedLastLogin = localStorage.getItem('motiva_last_login_date');
-        const shouldCallLogin = cachedLastLogin !== todayStr;
-
-        // 2. Parallel requests
-        const promises: Promise<any>[] = [api.getAllUserData(email)];
-        if (shouldCallLogin) {
-            promises.push(api.dailyLogin(email));
-        }
-
-        const results = await Promise.all(promises);
-        const response = results[0];
-        const loginRes = shouldCallLogin ? results[1] : null;
+        // v3.3: ОДИН запрос вместо двух параллельных
+        // initSession = dailyLogin + getAllUserData объединены на сервере
+        const response = await api.initSession(email);
 
         if (!response.success) {
             return null;
@@ -414,10 +403,23 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
         const normalizedUser = mapSheetToUser(response);
         let reward: DailyRewardData | null = null;
         
-        if (shouldCallLogin && loginRes) {
+        // v3.3: daily данные встроены в ответ
+        const dailyData = response.daily;
+        
+        if (dailyData && !dailyData.alreadyLoggedIn) {
+            const loginRes = {
+                success: true,
+                alreadyLoggedIn: dailyData.alreadyLoggedIn,
+                streakDays: dailyData.streakDays,
+                hpRestored: dailyData.hpRestored,
+                progress: response.progress
+            };
+            
             reward = processDailyLogin(normalizedUser, loginRes);
             if (reward) {
-                const { level, currentXp, nextLevelXp } = applyXpGain(normalizedUser.currentXp, normalizedUser.level, reward.xp);
+                const { level, currentXp, nextLevelXp } = applyXpGain(
+                    normalizedUser.currentXp, normalizedUser.level, reward.xp
+                );
                 normalizedUser.currentXp = currentXp;
                 normalizedUser.level = level;
                 normalizedUser.nextLevelXp = nextLevelXp;
@@ -425,16 +427,17 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
                 normalizedUser.totalCoinsEarned = (normalizedUser.totalCoinsEarned || 0) + reward.coins;
                 
                 api.updateProgress(normalizedUser.email, {
-                    currentXp, level, coins: normalizedUser.coins, totalCoinsEarned: normalizedUser.totalCoinsEarned
+                    currentXp, level, coins: normalizedUser.coins, 
+                    totalCoinsEarned: normalizedUser.totalCoinsEarned
                 }).catch(console.warn);
             }
         } else {
-             // Already logged in today locally
-             // We still want to ensure normalizedUser has correct date if it came from sheet as old
-             if (normalizedUser.lastLoginDate !== todayStr) {
-                 normalizedUser.lastLoginDate = todayStr;
-                 normalizedUser.dailyCompletionsCount = 0; // Reset if sheet was stale
-             }
+            // Уже залогинен сегодня
+            const todayStr = getTodayISO();
+            if (normalizedUser.lastLoginDate !== todayStr) {
+                normalizedUser.lastLoginDate = todayStr;
+                normalizedUser.dailyCompletionsCount = 0;
+            }
         }
         
         cleanupStaleQuestCache();
@@ -503,16 +506,27 @@ export const loginDemo = createAsyncThunk('user/loginDemo', async (_, { dispatch
 export const loginLocal = createAsyncThunk(
   'user/login',
   async (payload: { email: string; password: string }, { dispatch }) => {
-    const response = await api.login(payload.email, payload.password);
+    // v3.3: Один запрос вместо трёх (login + dailyLogin + getAllUserData)
+    const response = await api.loginFull(payload.email, payload.password);
+    
+    // mapSheetToUser работает как раньше — формат ответа тот же
     const normalizedUser = mapSheetToUser(response);
-    // v3: роль приходит от сервера
     if (response.user?.role) {
         normalizedUser.role = response.user.role;
     }
     
     localStorage.setItem(STORAGE_KEY_EMAIL, normalizedUser.email);
     
-    const loginRes = await api.dailyLogin(normalizedUser.email);
+    // v3.3: daily данные уже встроены в ответ — не нужен отдельный запрос
+    const dailyData = response.daily;
+    const loginRes = {
+        success: true,
+        alreadyLoggedIn: dailyData.alreadyLoggedIn,
+        streakDays: dailyData.streakDays,
+        hpRestored: dailyData.hpRestored,
+        progress: response.progress
+    };
+
     const reward = processDailyLogin(normalizedUser, loginRes);
     if (reward) {
          const { level, currentXp, nextLevelXp } = applyXpGain(normalizedUser.currentXp, normalizedUser.level, reward.xp);
@@ -522,6 +536,8 @@ export const loginLocal = createAsyncThunk(
          normalizedUser.coins += reward.coins;
          normalizedUser.totalCoinsEarned = (normalizedUser.totalCoinsEarned || 0) + reward.coins;
          
+         // v3.3: Прогресс уже обновлён на сервере через dailyLogin,
+         // но XP/coins от награды всё ещё нужно синхронизировать
          api.updateProgress(normalizedUser.email, {
              currentXp, level, coins: normalizedUser.coins, totalCoinsEarned: normalizedUser.totalCoinsEarned
          }).catch(console.warn);

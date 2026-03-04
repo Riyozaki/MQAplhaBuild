@@ -338,6 +338,11 @@ const request = async <T = any>(action: string, data: any = {}, method: 'POST' |
 
         if (method === 'GET') cacheGetResponse(action, data.email || '', result);
 
+        // v3.3: Кэшируем initSession/loginFull как если бы это был getAllUserData
+        if (action === 'initSession' || action === 'loginFull') {
+            cacheGetResponse('getAllUserData', data.email || '', result);
+        }
+
         return result as T;
     } catch (error: any) {
         clearTimeout(id);
@@ -370,6 +375,43 @@ export const startKeepAlive = () => {
 };
 
 export const api = {
+    // ── v3.3: Unified Login (login + dailyLogin + getAllUserData в 1 запрос) ──
+    loginFull: async (email: string, password: string) => {
+        const res = await request<{
+            success: true,
+            token: string,
+            user: any,
+            progress: any,
+            info: any,
+            quests: any[],
+            guild: any,
+            daily: {
+                alreadyLoggedIn: boolean,
+                streakDays: number,
+                hpRestored: boolean
+            }
+        }>('loginFull', { email, password });
+        if (res.token) setToken(res.token);
+        return res;
+    },
+
+    // ── v3.3: Init Session (dailyLogin + getAllUserData без пароля) ──
+    initSession: async (email: string) => {
+        return await request<{
+            success: true,
+            user: any,
+            progress: any,
+            info: any,
+            quests: any[],
+            guild: any,
+            daily: {
+                alreadyLoggedIn: boolean,
+                streakDays: number,
+                hpRestored: boolean
+            }
+        }>('initSession', { email });
+    },
+
     // ── 1. Регистрация ──
     register: async (email: string, password: string, username: string, grade: number, className?: string, classEmoji?: string) => {
         const res = await request<{success: true, message: string, token: string}>('register', { 
