@@ -236,7 +236,6 @@ export const flushOfflineQueue = async () => {
                 } else {
                     console.error(`[Offline] Logic error for ${req.action}:`, e);
 
-                    // Handle "Email already exists" for register action - treat as success/skip
                     if (req.action === 'register' && e.message && e.message.includes('Email already exists')) {
                         console.warn(`[Offline] Registration already completed on server. Removing ${req.action} from queue.`);
                         continue; // Skip adding to newQueue

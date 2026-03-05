@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User as UserIcon, AlertCircle, ShieldCheck, Sword, Gamepad2, Sparkles } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, AlertCircle, Sword, Sparkles } from 'lucide-react';
 import { useDispatch } from 'react-redux';
-import { loginLocal, registerLocal, loginDemo } from '../store/userSlice';
+import { loginLocal, registerLocal } from '../store/userSlice';
 import { AppDispatch } from '../store';
-import Modal from 'react-modal';
 import { motion } from 'framer-motion';
+import TermsModal from '../components/TermsModal';
 
 const Login: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ email: '', password: '', username: '' });
-  const [hasConsent, setHasConsent] = useState(false);
-  const [showConsentModal, setShowConsentModal] = useState(false);
+  
+  // New Consent States
+  const [hasDataConsent, setHasDataConsent] = useState(false);
+  const [hasParentalConsent, setHasParentalConsent] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
@@ -21,12 +25,6 @@ const Login: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError('');
-  };
-
-  const handleDemoLogin = async () => {
-      setLoading(true);
-      await dispatch(loginDemo());
-      navigate('/');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,11 +43,23 @@ const Login: React.FC = () => {
         return;
     }
 
-    if (!isLogin && !hasConsent) {
-      setError('Нужно согласие старейшин (родителей).');
-      setShowConsentModal(true);
-      return;
+    if (!isLogin) {
+        if (!hasDataConsent) {
+            setError('Необходимо принять Свиток Законов (Условия).');
+            return;
+        }
+        // Parental consent is technically optional if user is > 14, but we don't ask age.
+        // However, the checkbox says "(For Young Heroes < 14)".
+        // If they don't check it, we assume they are > 14.
+        // But let's just enforce it as a confirmation of "I am > 14 OR I have consent".
+        // Actually, the prompt says "Separate two consents".
+        // Let's make the second one optional but recommended, OR make it a combined confirmation logic?
+        // Let's stick to the prompt: "Separate two consents".
+        // I will require the first one. The second one is context-dependent.
+        // If I don't require the second one, users might skip it.
+        // Let's require the first one absolutely.
     }
+
     setLoading(true);
     try {
       if (isLogin) {
@@ -60,7 +70,7 @@ const Login: React.FC = () => {
           email: formData.email,
           password: formData.password,
           username: formData.username,
-          hasConsent
+          hasConsent: hasParentalConsent // Pass this to backend/store if needed
         })).unwrap();
       }
       navigate('/');
@@ -107,22 +117,6 @@ const Login: React.FC = () => {
           </motion.div>
         )}
 
-        {/* Demo Button */}
-        <button
-            onClick={handleDemoLogin}
-            disabled={loading}
-            className="w-full mb-6 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 border-t border-white/20 rounded-xl text-white font-bold shadow-lg flex items-center justify-center space-x-2 transition-transform active:scale-95 group"
-        >
-            <Gamepad2 className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-            <span>Демо-Режим (Начать Сразу)</span>
-        </button>
-
-        <div className="relative flex py-2 items-center mb-6">
-            <div className="flex-grow border-t border-slate-700"></div>
-            <span className="flex-shrink-0 mx-4 text-slate-500 text-xs uppercase font-bold tracking-wider">Или магия пароля</span>
-            <div className="flex-grow border-t border-slate-700"></div>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
@@ -141,17 +135,35 @@ const Login: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-start bg-slate-900/30 p-3 rounded-xl border border-slate-700/50">
-                  <input
-                    id="consent"
-                    type="checkbox"
-                    checked={hasConsent}
-                    onChange={(e) => setHasConsent(e.target.checked)}
-                    className="mt-1 h-4 w-4 text-purple-600 bg-slate-800 border-slate-600 rounded focus:ring-purple-500"
-                  />
-                <label htmlFor="consent" className="ml-3 text-xs text-slate-400">
-                  Клянусь, что мои родители знают о моем походе (Согласие).
-                </label>
+              {/* Consent Checkboxes */}
+              <div className="space-y-3 bg-slate-900/30 p-3 rounded-xl border border-slate-700/50">
+                  {/* Data Consent */}
+                  <div className="flex items-start">
+                      <input
+                        id="dataConsent"
+                        type="checkbox"
+                        checked={hasDataConsent}
+                        onChange={(e) => setHasDataConsent(e.target.checked)}
+                        className="mt-1 h-4 w-4 text-purple-600 bg-slate-800 border-slate-600 rounded focus:ring-purple-500 shrink-0"
+                      />
+                    <label htmlFor="dataConsent" className="ml-3 text-xs text-slate-400 leading-tight">
+                      Принимаю <button type="button" onClick={() => setShowTermsModal(true)} className="text-amber-400 hover:underline font-bold">Свиток Законов</button> и даю согласие на обработку данных.
+                    </label>
+                  </div>
+
+                  {/* Parental Consent */}
+                  <div className="flex items-start">
+                      <input
+                        id="parentalConsent"
+                        type="checkbox"
+                        checked={hasParentalConsent}
+                        onChange={(e) => setHasParentalConsent(e.target.checked)}
+                        className="mt-1 h-4 w-4 text-purple-600 bg-slate-800 border-slate-600 rounded focus:ring-purple-500 shrink-0"
+                      />
+                    <label htmlFor="parentalConsent" className="ml-3 text-xs text-slate-400 leading-tight">
+                      (Для героев до 14 лет) Мои родители знают о походе и дали согласие.
+                    </label>
+                  </div>
               </div>
             </motion.div>
           )}
@@ -210,29 +222,10 @@ const Login: React.FC = () => {
         </div>
       </motion.div>
 
-      <Modal
-        isOpen={showConsentModal}
-        onRequestClose={() => setShowConsentModal(false)}
-        className="max-w-md w-full mx-auto mt-20 glass-panel p-6 rounded-2xl border border-amber-500/30 outline-none"
-        overlayClassName="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-      >
-        <div className="text-center">
-          <ShieldCheck className="w-16 h-16 text-amber-500 mx-auto mb-4 drop-shadow-lg" />
-          <h3 className="text-2xl font-bold mb-2 rpg-font text-white">Кодекс Чести</h3>
-          <p className="text-slate-400 mb-6 leading-relaxed">
-            Юные герои должны иметь разрешение старших для вступления в гильдию. Подтвердите это.
-          </p>
-          <button
-            onClick={() => {
-              setHasConsent(true);
-              setShowConsentModal(false);
-            }}
-            className="bg-amber-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-amber-500 w-full shadow-lg"
-          >
-            Я подтверждаю
-          </button>
-        </div>
-      </Modal>
+      <TermsModal 
+        isOpen={showTermsModal} 
+        onClose={() => setShowTermsModal(false)} 
+      />
     </div>
   );
 };

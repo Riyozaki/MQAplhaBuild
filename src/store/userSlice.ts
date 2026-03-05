@@ -462,61 +462,6 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
     }
 });
 
-export const loginDemo = createAsyncThunk('user/loginDemo', async (_, { dispatch }) => {
-    const demoEmail = 'demo@motivaquest.local';
-    const demoPass = 'demo123';
-    const demoUsername = "Demo Hero";
-    const todayStr = getTodayISO();
-
-    const demoUserStruct = {
-        ...DEFAULT_USER_DATA,
-        email: demoEmail,
-        username: demoUsername,
-        uid: 'demo_hero_id',
-        role: 'student',
-        grade: 10,
-        heroClass: 'warrior',
-        className: 'Warrior',
-        classEmoji: '⚔️',
-        lastLoginDate: todayStr, // Use ISO format
-        hasParentalConsent: true,
-        currentHp: 100,
-        coins: 0,
-        level: 1
-    } as UserProfile;
-
-    try {
-        const response = await api.login(demoEmail, demoPass);
-        const normalizedUser = mapSheetToUser(response);
-        normalizedUser.role = 'student';
-        normalizedUser.uid = 'demo_hero_id';
-        localStorage.setItem(STORAGE_KEY_EMAIL, normalizedUser.email);
-        
-        // Simulate daily login for demo
-        const loginRes = { success: true, streakDays: (normalizedUser.streakDays || 0) + 1, alreadyLoggedIn: false };
-        const reward = processDailyLogin(normalizedUser, loginRes);
-        if (reward) {
-             const { level, currentXp, nextLevelXp } = applyXpGain(normalizedUser.currentXp, normalizedUser.level, reward.xp);
-             normalizedUser.currentXp = currentXp;
-             normalizedUser.level = level;
-             normalizedUser.nextLevelXp = nextLevelXp;
-             normalizedUser.coins += reward.coins;
-             normalizedUser.totalCoinsEarned = (normalizedUser.totalCoinsEarned || 0) + reward.coins;
-             
-             api.updateProgress(normalizedUser.email, {
-                 currentXp, level, coins: normalizedUser.coins, totalCoinsEarned: normalizedUser.totalCoinsEarned
-             }).catch(console.warn);
-        }
-
-        return { user: normalizedUser, reward };
-    } catch (e: any) {
-        console.warn("Demo user login failed. Registering...");
-        try { await api.register(demoEmail, demoPass, demoUsername, 10, "Warrior", "⚔️"); } catch (regError) {}
-        localStorage.setItem(STORAGE_KEY_EMAIL, demoUserStruct.email);
-        return { user: demoUserStruct, reward: null };
-    }
-});
-
 export const loginLocal = createAsyncThunk(
   'user/login',
   async (payload: { email: string; password: string }, { dispatch }) => {
@@ -1049,16 +994,6 @@ const userSlice = createSlice({
       })
       .addCase(loginLocal.fulfilled, (state, action) => { 
           state.currentUser = action.payload.user; 
-          state.dailyRewardPopup = action.payload.reward;
-          const email = action.payload.user.email?.toLowerCase().trim();
-          if (email) {
-              state.gradeGroup = localStorage.getItem(`motiva_grade_group_${email}`) 
-                  || gradeToGroup(action.payload.user.grade || 7);
-          }
-          state.nextRegenTime = Date.now() + 60 * 1000;
-      })
-      .addCase(loginDemo.fulfilled, (state, action) => { 
-          state.currentUser = action.payload.user;
           state.dailyRewardPopup = action.payload.reward;
           const email = action.payload.user.email?.toLowerCase().trim();
           if (email) {
