@@ -1,7 +1,8 @@
 // Квесты для группы: 6-7 класс
-import { Quest, GradeGroup } from './questTypes';
+import { QuestTemplate } from './questTypes';
+import { GradeGroup } from '../types';
 
-export const grade67Quests: Quest[] = [
+export const grade67Quests: QuestTemplate[] = [
   {
     id: "grade67_001",
     title: "Рациональный боец",

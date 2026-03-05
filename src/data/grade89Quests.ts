@@ -1,7 +1,8 @@
 // Квесты для группы: 8-9 класс
-import { Quest, GradeGroup } from './questTypes';
+import { QuestTemplate } from './questTypes';
+import { GradeGroup } from '../types';
 
-export const grade89Quests: Quest[] = [
+export const grade89Quests: QuestTemplate[] = [
   // ═══════════════════════════════════════════════════
   // АЛГЕБРА (001–010)
   // ═══════════════════════════════════════════════════

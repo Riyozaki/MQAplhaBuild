@@ -10,6 +10,7 @@ interface Props {
 
 const ChecklistTask: React.FC<Props> = ({ task, onAnswer }) => {
     const [checked, setChecked] = useState<string[]>([]);
+    const lastReportedLength = useRef(-1);
     
     // Store latest onAnswer callback in ref to avoid effect dependency loop
     const onAnswerRef = useRef(onAnswer);
@@ -31,6 +32,11 @@ const ChecklistTask: React.FC<Props> = ({ task, onAnswer }) => {
     // Auto-update parent
     useEffect(() => {
         if (total === 0) return;
+        
+        // Prevent infinite loop if parent re-renders
+        if (checked.length === lastReportedLength.current) return;
+        lastReportedLength.current = checked.length;
+
         const allChecked = checked.length === total;
         const someChecked = checked.length > 0;
         

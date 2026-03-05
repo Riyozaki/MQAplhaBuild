@@ -16,7 +16,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeColor } from './types';
 import { regenerateStats, updateUserProfile, setGradeGroup } from './store/userSlice';
 import GradeSelection from './components/GradeSelection';
-import { GradeGroup } from './data/questTypes';
+import { GradeGroup } from './types';
 import { api, startKeepAlive } from './services/api';
 import Modal from 'react-modal';
 import { Loader2 } from 'lucide-react';
@@ -185,7 +185,8 @@ const AppContent: React.FC = () => {
       api.flushQueue();
 
       // v3.3: Прогреваем GAS сразу при загрузке (параллельно с initAuth)
-      fetch(api.API_URL + '?action=ping').catch(() => {});
+      // fetch(api.API_URL + '?action=ping').catch(() => {}); // API_URL is private
+      api.request('ping').catch(() => {});
 
       // Start Keep-Alive (Ping GAS every 4 min)
       const keepAliveId = startKeepAlive();

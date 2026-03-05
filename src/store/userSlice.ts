@@ -70,7 +70,7 @@ const initialState: UserState = {
       equipSkin: false,
       regen: false
   },
-  nextRegenTime: Date.now() + 60 * 1000, // Reduced to 1 minute
+  nextRegenTime: 0, // Initialize to 0, set on load
   pendingSyncCount: 0
 };
 
@@ -307,8 +307,8 @@ const processDailyLogin = (user: UserProfile, loginRes: any): DailyRewardData | 
         user.currentHp = loginRes.progress.currentHp;
     }
 
-    // Reset daily completions if new day
-    if (user.lastLoginDate !== todayStr) {
+    // Reset daily completions if new day OR if we just claimed a daily reward (meaning it's a new day)
+    if (user.lastLoginDate !== todayStr || !loginRes.alreadyLoggedIn) {
         user.dailyCompletionsCount = 0;
     }
 
@@ -605,6 +605,26 @@ export const updateUserProfile = createAsyncThunk(
     } catch(e) { handleApiError(e); }
     return updates;
   }
+);
+
+// New thunk for theme change (pure reducer + side effect)
+export const setThemeAction = createAsyncThunk(
+    'user/setTheme',
+    async (theme: ThemeColor, { dispatch, getState }) => {
+        const state = getState() as RootState;
+        const user = state.user.currentUser;
+        if (!user || !user.email) return;
+
+        // Optimistic update
+        dispatch(setThemeColor(theme));
+
+        try {
+            await api.updateProfile({ email: user.email, selectedTheme: theme });
+        } catch (e) {
+            console.warn("Theme sync failed", e);
+            // Optionally revert here if needed
+        }
+    }
 );
 
 export const changeHeroClass = createAsyncThunk(
@@ -946,9 +966,8 @@ const userSlice = createSlice({
     popRewardAnimation: (state) => { state.pendingRewardAnimations.shift(); },
     submitSurvey: (state, action: PayloadAction<SurveySubmission>) => { },
     setThemeColor: (state, action: PayloadAction<ThemeColor>) => {
-       if (state.currentUser && state.currentUser.email) {
+       if (state.currentUser) {
          state.currentUser.themeColor = action.payload;
-         api.updateProfile({ email: state.currentUser.email, selectedTheme: action.payload }).catch(console.warn);
        }
     },
     setPendingSyncCount: (state, action: PayloadAction<number>) => {
@@ -1126,9 +1145,10 @@ const userSlice = createSlice({
 
           // IMPORTANT: Update local streaks immediately for UI
           if (quest.isHabit) {
-              const currentStreak = (state.currentUser.habitStreaks?.[quest.id] || 0) + 1;
+              const qId = String(quest.id);
+              const currentStreak = (state.currentUser.habitStreaks?.[qId] || 0) + 1;
               if (!state.currentUser.habitStreaks) state.currentUser.habitStreaks = {};
-              state.currentUser.habitStreaks[quest.id] = currentStreak;
+              state.currentUser.habitStreaks[qId] = currentStreak;
               // Persist streaks to backend is handled in completeQuestAction thunk
           }
           
@@ -1149,16 +1169,23 @@ const userSlice = createSlice({
             }
           }
           
-          // Re-adding XP logic here since we moved the thunk
-          const { level, currentXp, nextLevelXp } = applyXpGain(
-              state.currentUser.currentXp || 0,
-              state.currentUser.level || 1,
-              xpReward
-          );
+          // Use pre-calculated values from thunk
+          if (action.payload.newLevel !== undefined) {
+              state.currentUser.level = action.payload.newLevel;
+              state.currentUser.currentXp = action.payload.newXp;
+              state.currentUser.nextLevelXp = action.payload.newNextLevelXp;
+          } else {
+              // Fallback for safety
+              const { level, currentXp, nextLevelXp } = applyXpGain(
+                  state.currentUser.currentXp || 0,
+                  state.currentUser.level || 1,
+                  xpReward
+              );
+              state.currentUser.currentXp = currentXp;
+              state.currentUser.level = level;
+              state.currentUser.nextLevelXp = nextLevelXp;
+          }
           
-          state.currentUser.currentXp = currentXp;
-          state.currentUser.level = level;
-          state.currentUser.nextLevelXp = nextLevelXp;
           state.currentUser.coins = (state.currentUser.coins || 0) + coinsReward;
       })
       .addCase(completeQuestAction.rejected, (state) => { state.pendingActions.completeQuest = false; })

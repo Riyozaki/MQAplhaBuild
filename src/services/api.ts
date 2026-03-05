@@ -615,5 +615,8 @@ export const api = {
     },
 
     // Expose flush for manual triggering
-    flushQueue: flushOfflineQueue
+    flushQueue: flushOfflineQueue,
+
+    // Expose request for custom calls
+    request: request
 };

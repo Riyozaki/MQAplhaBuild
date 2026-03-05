@@ -1,7 +1,8 @@
 // Квесты для группы: 5 класс
-import { Quest, GradeGroup } from './questTypes';
+import { QuestTemplate } from './questTypes';
+import { GradeGroup } from '../types';
 
-export const grade5Quests: Quest[] = [
+export const grade5Quests: QuestTemplate[] = [
   {
     id: "grade5_001",
     title: "Укротитель дробей",

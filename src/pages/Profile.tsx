@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Award, Zap, Coins, CheckCircle, Sword, Edit2, Shield, Heart, Target, Sparkles, Map, Package, Save, TrendingUp, Calendar, Palette, History, Share2, Download, Upload, User, Crown, AlertCircle, Ghost } from 'lucide-react';
 import { RootState, AppDispatch } from '../store';
-import { updateUserProfile, equipSkinAction, importSaveData, setThemeColor, changeHeroClass, selectIsPending, setGradeGroup } from '../store/userSlice';
+import { updateUserProfile, equipSkinAction, importSaveData, setThemeColor, setThemeAction, changeHeroClass, selectIsPending, setGradeGroup } from '../store/userSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AVATAR_OPTIONS, PREMIUM_SKINS, getAvatarData } from '../data/avatars';
 import { GRADE_GROUPS, getHeroTitle } from '../data/questTypes';
@@ -500,7 +500,7 @@ const Profile: React.FC = () => {
                           {THEMES.map(theme => (
                               <button
                                   key={theme.id}
-                                  onClick={() => dispatch(setThemeColor(theme.id))}
+                                  onClick={() => dispatch(setThemeAction(theme.id))}
                                   className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${
                                       user.themeColor === theme.id 
                                         ? 'border-white bg-white/10' 

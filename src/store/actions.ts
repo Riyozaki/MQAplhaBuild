@@ -234,7 +234,7 @@ export const completeQuestAction = createAsyncThunk(
                 newNextLevelXp: nextLevelXp,
                 newCoins: (user.coins || 0) + coinsReward,
                 habitStreaks: quest.isHabit 
-                    ? { ...(user.habitStreaks || {}), [quest.id]: ((user.habitStreaks?.[quest.id]) || 0) + 1 }
+                    ? { ...(user.habitStreaks || {}), [String(quest.id)]: ((user.habitStreaks?.[String(quest.id)]) || 0) + 1 }
                     : undefined
             };
             await api.completeQuest(apiPayload);
@@ -245,7 +245,10 @@ export const completeQuestAction = createAsyncThunk(
             historyItem, 
             xpReward, 
             coinsReward, 
-            hpLost 
+            hpLost,
+            newLevel: currentLevel,
+            newXp: newXpTotal,
+            newNextLevelXp: nextLevelXp
         };
     }
 );

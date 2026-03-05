@@ -2,8 +2,6 @@
 
 import { QuestRarity, GradeGroup } from '../types';
 
-export type { GradeGroup };
-
 export interface QuestTemplate {
   id: string;
   title: string;
@@ -16,8 +14,6 @@ export interface QuestTemplate {
   coinReward: number;
   gradeGroup: GradeGroup;
 }
-
-export type Quest = QuestTemplate;
 
 export interface GradeGroupInfo {
   id: GradeGroup;

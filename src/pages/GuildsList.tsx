@@ -26,7 +26,7 @@ const GuildsList: React.FC = () => {
   const [joiningGuildId, setJoiningGuildId] = useState<string | null>(null);
 
   useEffect(() => {
-    dispatch(fetchGuildsList());
+    dispatch(fetchGuildsList(false));
   }, [dispatch]);
 
   const handleJoin = async (guildId: string) => {

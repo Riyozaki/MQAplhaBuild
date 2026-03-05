@@ -1,7 +1,8 @@
 // Квесты для группы: 10-11 класс
-import { Quest, GradeGroup } from './questTypes';
+import { QuestTemplate } from './questTypes';
+import { GradeGroup } from '../types';
 
-export const grade1011Quests: Quest[] = [
+export const grade1011Quests: QuestTemplate[] = [
   {
     id: "grade1011_001",
     title: "Логарифмический воин",

@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import Modal from 'react-modal';
 import App from './App.tsx';
 import './index.css';
+import 'react-toastify/dist/ReactToastify.css';
 import {store} from './store';
 import {setStoreRef} from './services/api';
 

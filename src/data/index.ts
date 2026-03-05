@@ -9,7 +9,8 @@ export { grade5QuestTasksMap } from './grade5QuestTasks';
 export { grade67QuestTasksMap } from './grade67QuestTasks';
 export { grade89QuestTasksMap } from './grade89QuestTasks';
 export { grade1011QuestTasksMap } from './grade1011QuestTasks';
-import { Quest, GradeGroup } from './questTypes';
+import { QuestTemplate } from './questTypes';
+import { GradeGroup } from '../types';
 import { grade5Quests } from './grade5Quests';
 import { grade67Quests } from './grade67Quests';
 import { grade89Quests } from './grade89Quests';
@@ -20,7 +21,7 @@ import { grade67QuestTasksMap } from './grade67QuestTasks';
 import { grade89QuestTasksMap } from './grade89QuestTasks';
 import { grade1011QuestTasksMap } from './grade1011QuestTasks';
 
-const questMap: Record<GradeGroup, Quest[]> = {
+const questMap: Record<GradeGroup, QuestTemplate[]> = {
   grade5: grade5Quests,
   grade67: grade67Quests,
   grade89: grade89Quests,
@@ -36,12 +37,12 @@ const allTaskMaps: Record<string, any[]> = {
 };
 
 /** Получить квесты по группе классов */
-export function getQuestsByGrade(gradeGroup: GradeGroup): Quest[] {
+export function getQuestsByGrade(gradeGroup: GradeGroup): QuestTemplate[] {
   return questMap[gradeGroup] || [];
 }
 
 /** Получить квесты по категории внутри группы */
-export function getQuestsByCategory(gradeGroup: GradeGroup, category: string): Quest[] {
+export function getQuestsByCategory(gradeGroup: GradeGroup, category: string): QuestTemplate[] {
   return getQuestsByGrade(gradeGroup).filter(q => q.category === category);
 }
 

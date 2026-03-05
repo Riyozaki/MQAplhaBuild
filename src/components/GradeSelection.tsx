@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GRADE_GROUPS, GradeGroup, GradeGroupInfo } from '../data/questTypes';
+import { GRADE_GROUPS, GradeGroupInfo } from '../data/questTypes';
+import { GradeGroup } from '../types';
 
 interface GradeSelectionProps {
   onSelect: (gradeGroup: GradeGroup) => void;
