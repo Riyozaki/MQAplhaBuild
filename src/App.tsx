@@ -23,6 +23,9 @@ import { Loader2 } from 'lucide-react';
 
 import RPGLoader from './components/RPGLoader';
 
+// Fix React Modal Accessibility
+Modal.setAppElement('#root');
+
 // Lazy Load Pages
 const Home = React.lazy(() => import('./pages/Home'));
 const Login = React.lazy(() => import('./pages/Login'));
@@ -164,15 +167,12 @@ const AppContent: React.FC = () => {
 
   // Regen Tick
   useEffect(() => {
-      const intervalId = setInterval(() => {
-          const now = Date.now();
-          if (document.visibilityState === 'visible' && now >= nextRegenTime) {
-              dispatch(regenerateStats());
-          }
-      }, 5000); // Check every 5 seconds
-
-      return () => clearInterval(intervalId);
-  }, [nextRegenTime, dispatch]);
+    if (!user) return;
+    const regenInterval = setInterval(() => {
+        dispatch(regenerateStats());
+    }, 60000);
+    return () => clearInterval(regenInterval);
+  }, [user, dispatch]);
 
   // Online Status Listener for Sync & Keep Alive
   useEffect(() => {

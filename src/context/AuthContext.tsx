@@ -48,8 +48,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     // Safety timeout in case initAuth hangs
     const timeout = setTimeout(() => setLoading(false), 10000);
+
+    // Slow loading notification
+    const slowTimer = setTimeout(() => {
+        if (loading) {
+            toast.info("🌙 Сервер просыпается... Подожди немного", { autoClose: 8000 });
+        }
+    }, 5000);
     
-    init().finally(() => clearTimeout(timeout));
+    init().finally(() => {
+        clearTimeout(timeout);
+        clearTimeout(slowTimer);
+    });
   }, [dispatch]);
 
   const trackSessionEnd = (reason: 'logout' | 'timeout') => {
@@ -68,6 +78,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await dispatch(logoutLocal());
     dispatch(clearUser());
     sessionStartRef.current = null;
+    localStorage.removeItem('motiva_session_start');
   };
 
   const handleSessionExpiry = () => {
@@ -83,6 +94,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     dispatch(logoutLocal());
     dispatch(clearUser());
     sessionStartRef.current = null;
+    localStorage.removeItem('motiva_session_start');
   };
 
   // 2. Anti-Addiction Timer
@@ -91,13 +103,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     if (!isLoggedIn) {
       sessionStartRef.current = null;
+      localStorage.removeItem('motiva_session_start');
       setTimeRemaining(SESSION_DURATION);
       return;
     }
 
-    // Set start time if it's a new session
+    // Set start time if it's a new session or restore from storage
     if (sessionStartRef.current === null) {
-      sessionStartRef.current = Date.now();
+      const saved = localStorage.getItem('motiva_session_start');
+      sessionStartRef.current = saved ? Number(saved) : Date.now();
+      localStorage.setItem('motiva_session_start', String(sessionStartRef.current));
     }
 
     const interval = setInterval(() => {
@@ -108,6 +123,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const remaining = Math.max(0, SESSION_DURATION - elapsed);
 
       setTimeRemaining(remaining);
+
+      // Warning at 15 minutes
+      if (remaining === 15 * 60) {
+          toast.warning("Осталось 15 минут игры!", { autoClose: 10000 });
+      }
 
       if (remaining <= 0) {
         clearInterval(interval);

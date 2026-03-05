@@ -71,23 +71,18 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
       const now = Date.now();
       const TTL = 24 * 60 * 60 * 1000; // 24 hours
 
-      // Cleanup old cache entries
-      Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('quest_progress_') || key.startsWith('quest_hints_')) {
-              // Check if we have a timestamp for this key (stored separately or inferred)
-              // For simplicity, we'll just rely on the current session for now, 
-              // but let's add a timestamp to the stored object in the future.
-              // Here we will just try to parse and check if it has a timestamp, if not, we might clear it if it's very old?
-              // Actually, let's just implement the cleanup logic for the *current* quest if it's stale,
-              // and a general cleanup for very old keys if we stored timestamps.
-              
-              // Since we didn't store timestamps before, we can't easily know age.
-              // Let's just implement a simple "clear all other quest progress" or similar?
-              // No, that might be annoying.
-              
-              // Let's just add a timestamp to the new storage format and check it.
-          }
-      });
+      // Cleanup old cache entries (Debounced or limited check)
+      // Only check if we haven't checked recently (e.g., once per session load)
+      if (!(window as any).__QUEST_CLEANUP_DONE__) {
+          (window as any).__QUEST_CLEANUP_DONE__ = true;
+          setTimeout(() => {
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('quest_progress_') || key.startsWith('quest_hints_')) {
+                    // Optional: Add logic to clear very old keys if needed
+                }
+            });
+          }, 1000);
+      }
 
       const cached = localStorage.getItem(`quest_progress_${quest.id}`);
       if (cached) {
@@ -286,7 +281,6 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
       onRequestClose={!isCompleting ? onClose : undefined}
       contentLabel={displayQuest.title}
       role="dialog"
-      ariaHideApp={false}
       shouldCloseOnOverlayClick={!isCompleting}
       shouldCloseOnEsc={!isCompleting}
       className="outline-none focus:outline-none"

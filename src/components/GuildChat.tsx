@@ -25,7 +25,7 @@ const GuildChat: React.FC = () => {
       
       const interval = setInterval(() => {
         if (document.hidden) return; // ← НЕ делать запрос при неактивной вкладке
-        if (currentUserRef.current?.guildId) {
+        if (currentUserRef.current?.guildId && currentUserRef.current?.email) {
             dispatch(fetchGuildChat(currentUserRef.current.email));
         }
       }, 15000); // Poll every 15 seconds

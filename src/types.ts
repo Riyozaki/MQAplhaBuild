@@ -135,6 +135,7 @@ export interface UserProfile {
   email: string;
   role: 'student' | 'admin';
   avatar: string; 
+  visitorAvatar?: string;
   level: number;
   grade?: number; 
   gradeGroup?: GradeGroup;

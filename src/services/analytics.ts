@@ -14,8 +14,8 @@ class AnalyticsService {
   private queue: AnalyticsEvent[] = [];
   private isProcessing = false;
   private flushInterval: any = null;
-  private BATCH_SIZE = 5;
-  private FLUSH_DELAY = 2000;
+  private BATCH_SIZE = 15;
+  private FLUSH_DELAY = 10000;
 
   constructor() {
     // HMR Cleanup: Stop previous instance if exists

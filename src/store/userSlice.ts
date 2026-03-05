@@ -3,7 +3,7 @@ import { UserProfile, SurveySubmission, ThemeColor, QuestHistoryItem, HeroClass 
 import { toast } from 'react-toastify';
 import { RootState } from './index';
 import { analytics } from '../services/analytics';
-import { api, BossBattlePayload, getCachedResponse } from '../services/api';
+import { api, BossBattlePayload, getCachedResponse, ping } from '../services/api';
 import { audio } from '../services/audio';
 import { handleApiError } from '../utils/errorHandler';
 import { CAMPAIGN_DATA } from '../data/campaignData';
@@ -191,7 +191,7 @@ const mapSheetToUser = (rawData: any): UserProfile => {
         weeklyXpResetDate: progress.weeklyXpResetDate,
         tutorialCompleted: progress.tutorialCompleted === true || progress.tutorialCompleted === 'true',
         
-        avatar: progress.visitorAvatar || 'warrior',
+        avatar: progress.avatar || progress.visitorAvatar || info.avatar || 'warrior',
         heroClass: info.heroClass || undefined,
         className: progress.className,
         classEmoji: progress.classEmoji,
@@ -301,6 +301,14 @@ const processDailyLogin = (user: UserProfile, loginRes: any): DailyRewardData | 
 
     const todayStr = getTodayISO();
     
+    // ⬇️ LOCAL PROTECTION: Check if already claimed today locally
+    const localClaimed = localStorage.getItem('motiva_daily_claimed_date');
+    if (localClaimed === todayStr) {
+        // Already claimed today locally - do not show again
+        user.lastLoginDate = todayStr;
+        return null;
+    }
+
     // Update streak and HP from server response
     user.streakDays = loginRes.streakDays;
     if (loginRes.progress && loginRes.progress.currentHp !== undefined) {
@@ -324,6 +332,9 @@ const processDailyLogin = (user: UserProfile, loginRes: any): DailyRewardData | 
     // --- GRANT REWARD ---
     user.lastLoginDate = todayStr;
     localStorage.setItem('motiva_last_login_date', todayStr);
+    
+    // ⬇️ MARK AS CLAIMED LOCALLY
+    localStorage.setItem('motiva_daily_claimed_date', todayStr);
 
     const bonusMultiplier = Math.min(3, 1 + (user.streakDays * 0.1));
     const coinsEarned = Math.floor(50 * bonusMultiplier);
@@ -379,7 +390,10 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
     const email = localStorage.getItem(STORAGE_KEY_EMAIL);
     if (!email) return null;
 
-    // 1. Optimistic UI: Показываем кэш МГНОВЕННО пока сервер отвечает
+    // ⬇️ Warm up GAS immediately
+    ping();
+
+    // 1. Optimistic UI: Show cache INSTANTLY while server responds
     const cached = getCachedResponse('getAllUserData', email);
     if (cached) {
         try {
@@ -392,8 +406,8 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
     }
 
     try {
-        // v3.3: ОДИН запрос вместо двух параллельных
-        // initSession = dailyLogin + getAllUserData объединены на сервере
+        // v3.3: ONE request instead of two parallel
+        // initSession = dailyLogin + getAllUserData combined on server
         const response = await api.initSession(email);
 
         if (!response.success) {
@@ -697,7 +711,10 @@ export const equipSkinAction = createAsyncThunk(
         if (!user || !user.email) return rejectWithValue("No user");
         
         try {
-            await api.updateProgress(user.email, { avatar: avatarId });
+            await api.updateProgress(user.email, { 
+                avatar: avatarId,
+                visitorAvatar: avatarId 
+            });
             return avatarId;
         } catch (e: any) {
             handleApiError(e);
@@ -1057,7 +1074,11 @@ const userSlice = createSlice({
       .addCase(equipSkinAction.pending, (state) => { state.pendingActions.equipSkin = true; })
       .addCase(equipSkinAction.fulfilled, (state, action) => {
           state.pendingActions.equipSkin = false;
-          if (state.currentUser) state.currentUser.avatar = action.payload;
+          if (state.currentUser) {
+              state.currentUser.avatar = action.payload;
+              // ⬇️ Cache locally for instant load
+              localStorage.setItem('motiva_avatar_cache', action.payload);
+          }
       })
       .addCase(equipSkinAction.rejected, (state) => { state.pendingActions.equipSkin = false; })
       

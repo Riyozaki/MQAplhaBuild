@@ -1,11 +1,19 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 interface RPGLoaderProps {
     message?: string;
 }
 
-const RPGLoader: React.FC<RPGLoaderProps> = ({ message = "Загрузка..." }) => (
+const RPGLoader: React.FC<RPGLoaderProps> = ({ message = "Загрузка..." }) => {
+  const [showFallback, setShowFallback] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setShowFallback(true), 15000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
   <div className="flex flex-col items-center justify-center py-12 min-h-[50vh]">
     <motion.div 
       className="relative w-20 h-20"
@@ -43,7 +51,20 @@ const RPGLoader: React.FC<RPGLoaderProps> = ({ message = "Загрузка..." }
         transition={{ repeat: Infinity, duration: 3, times: [0, 0.2, 0.4, 0.6, 0.8, 1] }}
       />
     </div>
+
+    {showFallback && (
+        <div className="mt-6 text-center animate-fade-in">
+            <p className="text-amber-500/80 text-xs mb-2">Что-то долго...</p>
+            <button 
+                onClick={() => window.location.reload()}
+                className="text-xs text-slate-400 hover:text-white underline"
+            >
+                Перезагрузить страницу
+            </button>
+        </div>
+    )}
   </div>
-);
+  );
+};
 
 export default RPGLoader;

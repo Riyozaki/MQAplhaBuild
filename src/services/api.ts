@@ -367,10 +367,16 @@ const request = async <T = any>(action: string, data: any = {}, method: 'POST' |
     }
 };
 
+export const ping = () => {
+    fetch(API_URL + '?action=ping').catch(() => {});
+};
+
 export const startKeepAlive = () => {
+    // Ping immediately on start
+    ping();
     const id = setInterval(() => {
-        fetch(API_URL + '?action=ping').catch(() => {});
-    }, 180000); // 3 min instead of 4
+        ping();
+    }, 120000); // 2 min instead of 3
     return id;
 };
 
