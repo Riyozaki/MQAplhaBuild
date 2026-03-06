@@ -47,9 +47,17 @@ const TimerTask: React.FC<Props> = ({ task, onAnswer }) => {
         const currentInput = inputRef.current;
 
         if (!submitted) {
-            // Time ran out
-            setResult('fail');
-            onAnswer(task.id, false, true); 
+            // Time ran out - but check if user typed correct answer anyway
+            const val = currentInput.trim();
+            const isCorrect = val === task.correctAnswer || (task.acceptableAnswers && task.acceptableAnswers.includes(val)) || false;
+            
+            if (isCorrect) {
+                setResult('success');
+                onAnswer(task.id, true);
+            } else {
+                setResult('fail');
+                onAnswer(task.id, false, true); 
+            }
         } else {
             // Check answer
             const val = currentInput.trim();

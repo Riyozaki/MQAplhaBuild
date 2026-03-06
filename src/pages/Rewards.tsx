@@ -8,7 +8,7 @@ import {
   Battery, ShieldCheck, Wand2, IceCream, ShieldOff, Package, Crown, Star, Gift
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../utils/confetti';
 import LoadingOverlay from '../components/LoadingOverlay';
 
 type ShopCategory = 'all' | 'skin' | 'real' | 'boost';
@@ -61,7 +61,7 @@ const Rewards: React.FC = () => {
           setPurchasedItem({ name: item.name, icon: item.icon, rarity: (item as any).rarity });
           const rarity = (item as any).rarity || 'Common';
           const particleCount = rarity === 'Legendary' ? 250 : rarity === 'Epic' ? 180 : rarity === 'Rare' ? 120 : 80;
-          confetti({ particleCount, spread: 80, origin: { y: 0.6 } });
+          fireConfetti({ particleCount, spread: 80, origin: { y: 0.6 } });
           dispatch(checkAchievements());
       });
     }

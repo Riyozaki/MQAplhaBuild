@@ -7,7 +7,9 @@ export type TaskType =
   | 'timer_challenge'  
   | 'checklist'        
   | 'ordering'         
-  | 'matching';        
+  | 'matching'
+  | 'drag_to_image'
+  | 'fill_blanks';
 
 export interface Task {
   id: number | string;
@@ -35,6 +37,15 @@ export interface Task {
   
   // Matching
   pairs?: { left: string; right: string }[];
+
+  // Drag to Image
+  imageUrl?: string;
+  dropZones?: { id: string; x: number; y: number; width?: number; height?: number; label?: string }[];
+  dragItems?: { id: string; label: string; correctZoneId: string }[];
+
+  // Fill Blanks
+  textWithBlanks?: string; // "The capital of France is ___"
+  blankAnswers?: string[]; // ["Paris"]
   
   // General
   hint?: string;
@@ -74,6 +85,7 @@ export interface Quest {
   gradeRange?: [number, number]; 
   gradeGroup?: GradeGroup;
   minMinutes: number; 
+  prerequisiteId?: number | string; // Quest ID that must be completed first
 }
 
 export interface ShopItem {
@@ -124,8 +136,13 @@ export interface StoryDay {
   locationName: string;
   description: string;
   character: 'wizard' | 'fairy' | 'warrior' | 'king';
-  dialogue: string;
-  questIds: (number | string)[];
+  dialogue: string | { high: string; medium: string; low: string };
+  questIds: (number | string)[] | {
+    grade5: (number | string)[];
+    grade67: (number | string)[];
+    grade89: (number | string)[];
+    grade1011: (number | string)[];
+  };
   rewardText: string;
 }
 

@@ -1,7 +1,17 @@
 // Интерактивные задания для квестов 5 класса
 
 let _id = 0;
-const nextId = () => ++_id;
+const nextId = () => `g5_${++_id}`;
+
+// Fisher-Yates shuffle
+const shuffleArray = <T>(array: T[]): T[] => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+};
 
 const quiz = (question: string, options: string[], correctIndex: number, extra?: any) => ({
   id: nextId(), type: 'quiz' as const, question, options, correctIndex, ...(extra || {}),
@@ -15,9 +25,20 @@ const textInput = (question: string, answer: string, extra?: any) => ({
 const timer = (question: string, answer: string, seconds: number, extra?: any) => ({
   id: nextId(), type: 'timer_challenge' as const, question, correctAnswer: answer, timerSeconds: seconds, ...(extra || {}),
 });
-const ordering = (question: string, correctOrder: string[], extra?: any) => ({
-  id: nextId(), type: 'ordering' as const, question, correctOrder, shuffledItems: [...correctOrder].sort(() => Math.random() - 0.5), ...(extra || {}),
-});
+const ordering = (question: string, correctOrder: string[], extra?: any) => {
+  let shuffledItems = shuffleArray(correctOrder);
+  // Ensure it's not the same as correct order (if length > 1)
+  if (correctOrder.length > 1) {
+      let attempts = 0;
+      while (JSON.stringify(shuffledItems) === JSON.stringify(correctOrder) && attempts < 5) {
+          shuffledItems = shuffleArray(correctOrder);
+          attempts++;
+      }
+  }
+  return {
+    id: nextId(), type: 'ordering' as const, question, correctOrder, shuffledItems, ...(extra || {}),
+  };
+};
 const matching = (question: string, pairs: { left: string; right: string }[], extra?: any) => ({
   id: nextId(), type: 'matching' as const, question, pairs, ...(extra || {}),
 });

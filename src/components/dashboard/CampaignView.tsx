@@ -123,6 +123,9 @@ const CampaignView: React.FC<CampaignViewProps> = ({
         }
     };
 
+    const chapter = currentStory.day > 14 ? 2 : 1;
+    const chapterTitle = chapter === 1 ? "Глава 1: Пробуждение" : "Глава 2: Новые Горизонты";
+
     return (
         <div className="relative">
              {/* Background Effects */}
@@ -136,7 +139,10 @@ const CampaignView: React.FC<CampaignViewProps> = ({
                     <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                     <div className="p-6 relative z-10">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-bold text-white rpg-font">Карта Мира</h2>
+                            <div>
+                                <h2 className="text-2xl font-bold text-white rpg-font">Карта Мира</h2>
+                                <p className="text-xs font-bold uppercase tracking-widest text-purple-400 mt-1">{chapterTitle}</p>
+                            </div>
                             <div className="text-right">
                                 <div className="text-sm text-slate-400">День</div>
                                 <div className="text-3xl font-black text-primary-400">{currentDayNum}<span className="text-lg text-slate-500">/14</span></div>
@@ -195,36 +201,52 @@ const CampaignView: React.FC<CampaignViewProps> = ({
 
                     {/* Quest List */}
                     <div className="space-y-3">
-                        {storyQuests.map(quest => (
+                        {storyQuests.map(quest => {
+                            const isPrerequisiteMet = !quest.prerequisiteId || 
+                                user.questHistory?.some((h: any) => String(h.questId) === String(quest.prerequisiteId));
+                            
+                            const isLocked = !isPrerequisiteMet && !quest.completed;
+
+                            return (
                             <motion.div
                                 key={quest.id}
-                                whileHover={!quest.completed ? { scale: 1.01 } : {}}
-                                onClick={() => !quest.completed && onQuestSelect(quest)}
-                                className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                                whileHover={!quest.completed && !isLocked ? { scale: 1.01 } : {}}
+                                onClick={() => !quest.completed && !isLocked && onQuestSelect(quest)}
+                                className={`p-4 rounded-xl border transition-all ${
                                     quest.completed 
                                         ? 'bg-emerald-900/20 border-emerald-500/30 opacity-60' 
-                                        : 'bg-slate-800/50 border-slate-700 hover:border-primary-500/50 hover:bg-slate-800'
+                                        : isLocked
+                                            ? 'bg-slate-900/50 border-slate-800 opacity-50 cursor-not-allowed'
+                                            : 'bg-slate-800/50 border-slate-700 hover:border-primary-500/50 hover:bg-slate-800 cursor-pointer'
                                 }`}
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         {quest.completed ? (
                                             <Check size={20} className="text-emerald-400" />
+                                        ) : isLocked ? (
+                                            <Lock size={20} className="text-slate-600" />
                                         ) : (
                                             <Swords size={20} className="text-slate-400" />
                                         )}
                                         <div>
-                                            <h4 className="font-bold text-white text-sm">{quest.title}</h4>
-                                            <p className="text-slate-500 text-xs">{quest.category}</p>
+                                            <h4 className={`font-bold text-sm ${isLocked ? 'text-slate-500' : 'text-white'}`}>
+                                                {quest.title}
+                                            </h4>
+                                            <p className="text-slate-500 text-xs">
+                                                {isLocked ? 'Требуется выполнить предыдущее задание' : quest.category}
+                                            </p>
                                         </div>
                                     </div>
-                                    <div className="flex gap-2 text-xs font-bold">
-                                        <span className="text-amber-400">{quest.coins}💰</span>
-                                        <span className="text-purple-400">{quest.xp}⭐</span>
-                                    </div>
+                                    {!isLocked && (
+                                        <div className="flex gap-2 text-xs font-bold">
+                                            <span className="text-amber-400">{quest.coins}💰</span>
+                                            <span className="text-purple-400">{quest.xp}⭐</span>
+                                        </div>
+                                    )}
                                 </div>
                             </motion.div>
-                        ))}
+                        )})}
                     </div>
                 </motion.div>
 

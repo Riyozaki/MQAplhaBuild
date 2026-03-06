@@ -84,8 +84,32 @@ const StoryDashboard: React.FC = () => {
   if (!user) return null;
 
   const currentDayNum = user.campaign?.currentDay || 1;
-  const currentStory = CAMPAIGN_DATA.find(d => d.day === currentDayNum) || CAMPAIGN_DATA[0];
-  const storyQuestIds = currentStory.questIds.map(String);
+  const rawStory = CAMPAIGN_DATA.find(d => d.day === currentDayNum) || CAMPAIGN_DATA[0];
+  
+  // 1. Resolve Quest IDs based on Grade
+  const gradeGroup = user.gradeGroup || 'grade5';
+  const rawQuestIds = Array.isArray(rawStory.questIds) 
+      ? rawStory.questIds 
+      : (rawStory.questIds[gradeGroup as keyof typeof rawStory.questIds] || rawStory.questIds['grade5']);
+  
+  const storyQuestIds = rawQuestIds.map(String);
+  
+  // 2. Resolve Dialogue based on performance (Streak as proxy)
+  let dialogueLevel: 'high' | 'medium' | 'low' = 'medium';
+  if (user.streakDays >= 3) dialogueLevel = 'high';
+  else if (user.streakDays === 0) dialogueLevel = 'low';
+  
+  const resolvedDialogue = typeof rawStory.dialogue === 'string'
+      ? rawStory.dialogue
+      : rawStory.dialogue[dialogueLevel];
+
+  // Create a resolved story object for the view
+  const currentStory = {
+      ...rawStory,
+      questIds: rawQuestIds,
+      dialogue: resolvedDialogue
+  };
+
   const storyQuests = quests.filter(q => storyQuestIds.includes(String(q.id)));
   const hasCampaignQuests = storyQuests.length > 0;
   const completedCount = storyQuests.filter(q => q.completed).length;
@@ -168,6 +192,7 @@ const StoryDashboard: React.FC = () => {
             isOpen={!!selectedQuest} 
             onClose={() => setSelectedQuest(null)} 
             multiplier={questMultiplier}
+            locationId={currentStory.locationId}
         />
       </ErrorBoundary>
       <ErrorBoundary>
@@ -175,6 +200,7 @@ const StoryDashboard: React.FC = () => {
             isOpen={isBossModalOpen} 
             onClose={() => setIsBossModalOpen(false)} 
             allies={user.campaign.unlockedAllies || []} 
+            gradeGroup={user.gradeGroup}
         />
       </ErrorBoundary>
     </div>

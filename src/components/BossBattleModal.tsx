@@ -1,66 +1,30 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Modal from 'react-modal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skull, Crown, AlertCircle, Heart, Zap, Sword, Battery, Loader2 } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '../store';
 import { selectIsPending, finishCampaign } from '../store/userSlice';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../utils/confetti';
 import LoadingOverlay from './LoadingOverlay';
+import { GradeGroup } from '../types';
+import { grade5QuestTasksMap } from '../data/grade5QuestTasks';
+import { grade67QuestTasksMap } from '../data/grade67QuestTasks';
+import { grade89QuestTasksMap } from '../data/grade89QuestTasks';
+import { grade1011QuestTasksMap } from '../data/grade1011QuestTasks';
 
-const BOSS_QUESTIONS = [
+const FALLBACK_QUESTIONS = [
   // MATH
   { q: "9 × 7 = ?", opts: ["63","56","72","81"], correct: 0, cat: "math", dmg: 25 },
   { q: "√169 = ?", opts: ["13","11","12","14"], correct: 0, cat: "math", dmg: 30 },
-  { q: "15% от 400 = ?", opts: ["60","40","80","45"], correct: 0, cat: "math", dmg: 30 },
-  { q: "(a+b)² = ?", opts: ["a²+2ab+b²","a²+b²","2ab","a²+ab+b²"], correct: 0, cat: "math", dmg: 35 },
-  { q: "Площадь круга: S = ?", opts: ["πr²","2πr","πd","r²"], correct: 0, cat: "math", dmg: 35 },
-  { q: "x²-25 = ?", opts: ["(x-5)(x+5)","(x-5)²","x(x-25)","(x+5)²"], correct: 0, cat: "math", dmg: 40 },
-  { q: "sin(90°) = ?", opts: ["1","0","-1","0.5"], correct: 0, cat: "math", dmg: 40 },
-  { q: "2⁸ = ?", opts: ["256","128","512","64"], correct: 0, cat: "math", dmg: 30 },
-  
-  // RUSSIAN
-  { q: "Как правильно?", opts: ["Участвовать","Учавствовать","Участвывать","Учавстовать"], correct: 0, cat: "russian", dmg: 25 },
-  { q: "НН или Н? Стекля__ый", opts: ["НН","Н"], correct: 0, cat: "russian", dmg: 30 },
-  { q: "ПРЕ или ПРИ? ...ехать", opts: ["ПРИ","ПРЕ"], correct: 0, cat: "russian", dmg: 25 },
-  { q: "Подлежащее в 'Идёт дождь'?", opts: ["Дождь","Идёт","Нет подлежащего","Идёт дождь"], correct: 0, cat: "russian", dmg: 30 },
-  { q: "НЕ с глаголами пишется...", opts: ["Раздельно","Слитно","По-разному","Через дефис"], correct: 0, cat: "russian", dmg: 25 },
-  
-  // SCIENCE
-  { q: "Формула воды?", opts: ["H₂O","CO₂","NaCl","O₂"], correct: 0, cat: "science", dmg: 25 },
-  { q: "F = m × a — чей закон?", opts: ["Ньютона","Архимеда","Ома","Паскаля"], correct: 0, cat: "science", dmg: 30 },
-  { q: "Сколько хромосом у человека?", opts: ["46","23","48","44"], correct: 0, cat: "science", dmg: 35 },
-  { q: "pH = 7 — это...", opts: ["Нейтральная среда","Кислая","Щелочная","Опасная"], correct: 0, cat: "science", dmg: 30 },
-  { q: "Единица силы тока?", opts: ["Ампер","Вольт","Ом","Ватт"], correct: 0, cat: "science", dmg: 25 },
-  { q: "Митохондрии — это...", opts: ["Энергостанции клетки","Часть мозга","Бактерии","Вирусы"], correct: 0, cat: "science", dmg: 30 },
-  { q: "Фотосинтез выделяет...", opts: ["Кислород","CO₂","Азот","Водород"], correct: 0, cat: "science", dmg: 25 },
-  
-  // HISTORY
-  { q: "Крещение Руси — год?", opts: ["988","1054","862","1147"], correct: 0, cat: "history", dmg: 30 },
-  { q: "Кто основал СПб?", opts: ["Пётр I","Екатерина II","Иван Грозный","Ленин"], correct: 0, cat: "history", dmg: 25 },
-  { q: "Начало ВОВ?", opts: ["22 июня 1941","1 сентября 1939","9 мая 1945","1 января 1942"], correct: 0, cat: "history", dmg: 30 },
-  { q: "Отмена крепостного права?", opts: ["1861","1812","1917","1905"], correct: 0, cat: "history", dmg: 30 },
-  
-  // ENGLISH
-  { q: "She ___ a doctor (to be)", opts: ["is","am","are","be"], correct: 0, cat: "lang", dmg: 25 },
-  { q: "Past Simple: go → ?", opts: ["went","goed","gone","going"], correct: 0, cat: "lang", dmg: 30 },
-  { q: "'Knowledge' = ?", opts: ["Знание","Нож","Колено","Стук"], correct: 0, cat: "lang", dmg: 25 },
-  { q: "I have ___ eaten (Present Perfect)", opts: ["already","yesterday","tomorrow","now"], correct: 0, cat: "lang", dmg: 30 },
-  
-  // LITERATURE
-  { q: "Автор 'Мёртвых душ'?", opts: ["Гоголь","Пушкин","Толстой","Чехов"], correct: 0, cat: "lit", dmg: 25 },
-  { q: "'Золотая осень' — это...", opts: ["Эпитет","Метафора","Олицетворение","Сравнение"], correct: 0, cat: "lit", dmg: 30 },
-  
-  // LOGIC/GENERAL
-  { q: "Продолжи: 2, 4, 8, 16, ?", opts: ["32","24","20","64"], correct: 0, cat: "logic", dmg: 25 },
-  { q: "Сколько минут в 2.5 часах?", opts: ["150","120","130","200"], correct: 0, cat: "logic", dmg: 20 },
-  { q: "1 км = ? метров", opts: ["1000","100","10000","500"], correct: 0, cat: "logic", dmg: 20 },
+  // ... (keep a few fallbacks)
 ];
 
 interface BossBattleModalProps {
     isOpen: boolean;
     onClose: () => void;
     allies: string[];
+    gradeGroup?: GradeGroup;
 }
 
 interface Question {
@@ -71,7 +35,38 @@ interface Question {
     dmg: number;
 }
 
-const BossBattleModal: React.FC<BossBattleModalProps> = ({ isOpen, onClose, allies }) => {
+const getBossQuestions = (grade: GradeGroup = 'grade5'): Question[] => {
+    let map: Record<string, any[]>;
+    switch(grade) {
+        case 'grade5': map = grade5QuestTasksMap; break;
+        case 'grade67': map = grade67QuestTasksMap; break;
+        case 'grade89': map = grade89QuestTasksMap; break;
+        case 'grade1011': map = grade1011QuestTasksMap; break;
+        default: map = grade5QuestTasksMap;
+    }
+
+    const questions: Question[] = [];
+    Object.values(map).forEach(tasks => {
+        tasks.forEach(t => {
+            if (t.type === 'quiz' && t.options && t.options.length >= 2) {
+                questions.push({
+                    q: t.question,
+                    opts: t.options,
+                    correct: t.correctIndex || 0,
+                    cat: 'general',
+                    dmg: 25 + Math.floor(Math.random() * 15) // Random dmg 25-40
+                });
+            }
+        });
+    });
+    
+    if (questions.length < 10) return FALLBACK_QUESTIONS;
+    
+    // Shuffle and pick 20
+    return questions.sort(() => Math.random() - 0.5).slice(0, 20);
+};
+
+const BossBattleModal: React.FC<BossBattleModalProps> = ({ isOpen, onClose, allies, gradeGroup }) => {
     const dispatch = useDispatch<AppDispatch>();
     const isPending = useSelector(selectIsPending('bossBattle'));
     
@@ -98,6 +93,7 @@ const BossBattleModal: React.FC<BossBattleModalProps> = ({ isOpen, onClose, alli
     });
     
     // Question State
+    const [questions, setQuestions] = useState<Question[]>([]);
     const [currentQ, setCurrentQ] = useState<Question | null>(null);
     const [disabledOpts, setDisabledOpts] = useState<number[]>([]);
     const [dmgMultiplier, setDmgMultiplier] = useState(1);
@@ -108,10 +104,14 @@ const BossBattleModal: React.FC<BossBattleModalProps> = ({ isOpen, onClose, alli
 
     useEffect(() => {
         if (isOpen) {
+            const qs = getBossQuestions(gradeGroup);
+            setQuestions(qs);
             resetBattle();
-            nextQuestion();
+            // Pick first question immediately
+            const idx = Math.floor(Math.random() * qs.length);
+            setCurrentQ(qs[idx]);
         }
-    }, [isOpen]);
+    }, [isOpen, gradeGroup]);
 
     const resetBattle = () => {
         playerHpRef.current = maxPlayerHp;
@@ -128,8 +128,9 @@ const BossBattleModal: React.FC<BossBattleModalProps> = ({ isOpen, onClose, alli
     };
 
     const nextQuestion = () => {
-        const idx = Math.floor(Math.random() * BOSS_QUESTIONS.length);
-        setCurrentQ(BOSS_QUESTIONS[idx]);
+        if (questions.length === 0) return;
+        const idx = Math.floor(Math.random() * questions.length);
+        setCurrentQ(questions[idx]);
         setDisabledOpts([]);
     };
 
@@ -154,7 +155,7 @@ const BossBattleModal: React.FC<BossBattleModalProps> = ({ isOpen, onClose, alli
             
             if (newBossHp <= 0) {
                 setTurn('win');
-                confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
+                fireConfetti({ particleCount: 200, spread: 100, origin: { y: 0.6 } });
             } else {
                 setTurn('boss');
                 setTimeout(bossTurn, 1500);

@@ -13,19 +13,22 @@ import LoadingOverlay from './LoadingOverlay';
 import { CATEGORY_TRANSLATIONS } from '../data/questTypes';
 
 // Import task components
-import QuizTask from './tasks/QuizTask';
-import InputTask from './tasks/InputTask';
+import QuizTask from './QuizTask';
+import InputTask from './InputTask';
 import TimerTask from './tasks/TimerTask';
 import ChecklistTask from './tasks/ChecklistTask';
 import OrderingTask from './tasks/OrderingTask';
 import MatchingTask from './tasks/MatchingTask';
 import YesNoTask from './tasks/YesNoTask';
+import FillBlanksTask from './tasks/FillBlanksTask';
+import DragToImageTask from './tasks/DragToImageTask';
 
 interface QuestModalProps {
   quest: Quest | null;
   isOpen: boolean;
   onClose: () => void;
   multiplier?: number;
+  locationId?: string;
 }
 
 interface TaskResult {
@@ -37,10 +40,57 @@ interface TaskResult {
 const MAX_HINTS = 4;
 const HINT_PENALTY = 0.25; // 25% per hint
 
-const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multiplier = 1 }) => {
+const getLocationModifier = (locId: string | undefined, category: string): { xp: number; coins: number; label?: string } => {
+    switch(locId) {
+        case 'forest': 
+            if (category === 'science' || category === 'ecology') return { xp: 1.2, coins: 1.0, label: '🌲 Лес: +20% XP (Природа)' };
+            return { xp: 1.0, coins: 1.0 };
+        case 'mountains':
+            return { xp: 1.0, coins: 1.2, label: '🏔️ Горы: +20% Золота' };
+        case 'castle':
+            return { xp: 1.1, coins: 1.1, label: '🏰 Замок: +10% Наград' };
+        case 'desert':
+            return { xp: 1.0, coins: 1.0 }; // Maybe harder?
+        case 'throne':
+            return { xp: 1.5, coins: 1.5, label: '👑 Трон: +50% Наград' };
+        default: return { xp: 1.0, coins: 1.0 };
+    }
+};
+
+const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multiplier = 1, locationId }) => {
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((state: RootState) => state.user.currentUser);
   const isCompleting = useSelector(selectIsPending('completeQuest'));
+  
+  // ... existing hooks ...
+
+  const locMod = getLocationModifier(locationId, quest?.category || '');
+  
+  // ... existing logic ...
+
+  // Apply location modifier to final multiplier
+  // finalMultiplier = finalMultiplier * multiplier * hintPenaltyMultiplier * locMod.xp (for XP)
+  // But completeQuestAction takes a single multiplier.
+  // I might need to pass separate XP/Coin multipliers or just average them.
+  // For simplicity, I'll apply the XP modifier to the main multiplier if it's significant, 
+  // or just show it visually and calculate rewards locally for display.
+  // The backend/reducer calculates rewards based on quest.xp * multiplier.
+  // So I should pass the combined multiplier.
+  
+  // Let's use the XP modifier as the "main" modifier for the action, 
+  // but this affects coins too if the reducer uses the same multiplier.
+  // If I want separate, I need to update the reducer.
+  // For now, I'll assume the multiplier affects both.
+  
+  const effectiveLocMod = Math.max(locMod.xp, locMod.coins);
+
+  // ... inside handleCompleteFlow ...
+  // finalMultiplier = finalMultiplier * multiplier * hintPenaltyMultiplier * effectiveLocMod;
+
+  // ... inside render ...
+  // const displayedCoins = Math.floor(displayQuest.coins * multiplier * hintPenaltyMultiplier * locMod.coins);
+  // const displayedXp = Math.floor(displayQuest.xp * multiplier * hintPenaltyMultiplier * locMod.xp);
+
   const { playQuestComplete } = useSoundEffects();
   
   const [taskResults, setTaskResults] = useState<{ [key: string]: TaskResult }>({});
@@ -199,6 +249,8 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
         case 'checklist': return <ChecklistTask key={task.id} task={task} onAnswer={handleTaskAnswer} />;
         case 'ordering': return <OrderingTask key={task.id} task={task} onAnswer={handleTaskAnswer} {...hintProps} />;
         case 'matching': return <MatchingTask key={task.id} task={task} onAnswer={handleTaskAnswer} {...hintProps} />;
+        case 'fill_blanks': return <FillBlanksTask key={task.id} task={task} onComplete={(isCorrect) => handleTaskAnswer(task.id, isCorrect)} />;
+        case 'drag_to_image': return <DragToImageTask key={task.id} task={task} onComplete={(isCorrect) => handleTaskAnswer(task.id, isCorrect)} />;
         case 'yes_no':
         default: return <YesNoTask key={task.id} task={task} onAnswer={handleTaskAnswer} />;
       }
@@ -232,8 +284,8 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
           return;
       }
 
-      // Apply hint penalty and boost multiplier
-      finalMultiplier = finalMultiplier * multiplier * hintPenaltyMultiplier;
+      // Apply hint penalty and boost multiplier AND location modifier
+      finalMultiplier = finalMultiplier * multiplier * hintPenaltyMultiplier * effectiveLocMod;
 
       try {
           await dispatch(completeQuestAction({ quest, multiplier: finalMultiplier })).unwrap();
@@ -271,9 +323,9 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
   const displayQuest = quest || cachedQuest;
   if (!displayQuest) return null;
 
-  // Calculate displayed rewards with hint penalty
-  const displayedCoins = Math.floor(displayQuest.coins * multiplier * hintPenaltyMultiplier);
-  const displayedXp = Math.floor(displayQuest.xp * multiplier * hintPenaltyMultiplier);
+  // Calculate displayed rewards with hint penalty and location modifier
+  const displayedCoins = Math.floor(displayQuest.coins * multiplier * hintPenaltyMultiplier * locMod.coins);
+  const displayedXp = Math.floor(displayQuest.xp * multiplier * hintPenaltyMultiplier * locMod.xp);
 
   return (
     <Modal
@@ -336,6 +388,11 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
                  {multiplier > 1 && (
                      <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest flex items-center">
                          <Zap size={10} className="mr-1" /> x{multiplier} BOOST
+                     </span>
+                 )}
+                 {locMod.label && (
+                     <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest flex items-center">
+                         {locMod.label}
                      </span>
                  )}
              </div>

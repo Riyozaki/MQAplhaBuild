@@ -113,7 +113,7 @@ const questsData = [
     // --- DAY 7: ENGLISH & LOGIC ---
     { id: 29, title: "Irregular Verbs", description: "Неправильные глаголы", category: "english", categoryLabel: "Английский", categoryIcon: "🇬🇧", rarity: "Rare", xp: 30, coins: 25, tasks: [
         t('matching', "Forms", "", { pairs: [{left: 'Go', right: 'Went'}, {left: 'See', right: 'Saw'}, {left: 'Buy', right: 'Bought'}] }),
-        t('text_input', "Past simple of 'Do'?", "did", {})
+        t('fill_blanks', "Complete the sentence", "", { textWithBlanks: "I ___ my homework yesterday.", blankAnswers: ["did"] })
     ]},
     { id: 93, title: "Загадки Мудреца", description: "Тренировка ума", category: "math", categoryLabel: "Математика", categoryIcon: "🔢", rarity: "Epic", xp: 40, coins: 30, tasks: [
         t('text_input', "Что идет, не двигаясь с места?", "время", { acceptableAnswers: ["часы", "время", "жизнь"] }),
@@ -180,7 +180,19 @@ const questsData = [
 
     // --- DAY 12: BIO & ECO ---
     { id: 39, title: "Анатомия Человека", description: "Твое тело", category: "science", categoryLabel: "Наука", categoryIcon: "🔬", rarity: "Epic", xp: 40, coins: 30, tasks: [
-        t('matching', "Орган - Функция", "", { pairs: [{left: 'Сердце', right: 'Качает кровь'}, {left: 'Легкие', right: 'Дыхание'}, {left: 'Желудок', right: 'Переваривание'}] }),
+        t('drag_to_image', "Расставь органы", "", { 
+            imageUrl: "https://placehold.co/600x400?text=Human+Body",
+            dropZones: [
+                { id: 'heart', x: 45, y: 35, width: 10, height: 10, label: 'Сердце' },
+                { id: 'lungs', x: 35, y: 30, width: 30, height: 20, label: 'Легкие' },
+                { id: 'stomach', x: 45, y: 55, width: 15, height: 10, label: 'Желудок' }
+            ],
+            items: [
+                { id: 'item-heart', label: 'Сердце', targetZoneId: 'heart' },
+                { id: 'item-lungs', label: 'Легкие', targetZoneId: 'lungs' },
+                { id: 'item-stomach', label: 'Желудок', targetZoneId: 'stomach' }
+            ]
+        }),
         t('number_input', "Сколько камер в сердце человека?", "4", {})
     ]},
     { id: 82, title: "Пищевые Цепочки", description: "Экосистема", category: "ecology", categoryLabel: "Экология", categoryIcon: "🌱", rarity: "Rare", xp: 30, coins: 20, tasks: [
@@ -214,7 +226,8 @@ const questsData = [
         t('text_input', "Придумай девиз своего героя", "*", {})
     ]},
     { id: 71, title: "План Будущего", description: "Что дальше?", category: "self", categoryLabel: "Саморазвитие", categoryIcon: "✨", rarity: "Legendary", xp: 100, coins: 100, tasks: [
-        t('checklist', "План", "", { checklistItems: [{id:'1', label: 'Выбрать новую цель'}, {id:'2', label: 'Не бросать привычки'}, {id:'3', label: 'Победить Босса'}] })
+        t('checklist', "План", "", { checklistItems: [{id:'1', label: 'Выбрать новую цель'}, {id:'2', label: 'Не бросать привычки'}, {id:'3', label: 'Победить Босса'}] }),
+        t('text_input', "Напиши свою главную цель на следующий месяц", "*", {})
     ]},
     
     // --- Additional Pool Quests ---

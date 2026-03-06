@@ -13,9 +13,12 @@ const YesNoTask: React.FC<Props> = ({ task, onAnswer }) => {
 
     const handle = (val: 'yes' | 'no' | 'partial') => {
         setStatus(val);
-        if (val === 'yes') onAnswer(task.id, true);
-        else if (val === 'partial') onAnswer(task.id, false, true);
-        else onAnswer(task.id, false);
+        if (val === 'partial') {
+            onAnswer(task.id, false, true);
+        } else {
+            const isCorrect = val === (task.correctAnswer || 'yes');
+            onAnswer(task.id, isCorrect);
+        }
     };
 
     return (

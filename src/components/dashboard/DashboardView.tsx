@@ -5,7 +5,7 @@ import { selectIsPending, purchaseItemAction } from '../../store/userSlice';
 import { completeQuestAction } from '../../store/questsSlice';
 import { Quest } from '../../types';
 import { useSoundEffects } from '../../hooks/useSoundEffects';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../../utils/confetti';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
 import { Award, ShoppingBag, CheckCircle, Coffee, Star, Clock } from 'lucide-react';
@@ -27,7 +27,7 @@ const itemVar = {
 };
 
 // Helper for seeded random
-const getDailyRandomQuests = (allQuests: Quest[]): Quest[] => {
+const getDailyRandomQuests = (allQuests: Quest[], user: any): Quest[] => {
     const now = new Date();
     const msPer12h = 12 * 60 * 60 * 1000;
     const anchor = new Date('2024-01-01T03:00:00.000Z').getTime(); 
@@ -44,7 +44,22 @@ const getDailyRandomQuests = (allQuests: Quest[]): Quest[] => {
     // Filter out habits, story quests, AND completed quests
     const pool = allQuests.filter(q => !q.isHabit && q.type !== 'story' && !q.completed);
     
+    // Adaptive Difficulty Logic
+    let preferredRarity: string[] = ['Common', 'Rare', 'Epic', 'Legendary'];
+    if (user.streakDays > 5) {
+        preferredRarity = ['Rare', 'Epic', 'Legendary']; // Harder for high streak
+    } else if (user.streakDays < 2) {
+        preferredRarity = ['Common', 'Rare']; // Easier for low streak
+    }
+
     const shuffled = [...pool].sort((a, b) => {
+        // Rarity weight
+        const weightA = preferredRarity.includes(a.rarity) ? 1 : 0;
+        const weightB = preferredRarity.includes(b.rarity) ? 1 : 0;
+        
+        // Prioritize preferred rarity
+        if (weightA !== weightB) return weightB - weightA;
+
         const rA = seededRandom(cycleIndex + Number(a.id));
         const rB = seededRandom(cycleIndex + Number(b.id));
         return rA - rB;
@@ -64,7 +79,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
     
     // Derived state
     const habits = quests.filter(q => q.isHabit);
-    const dailyChallenges = useMemo(() => getDailyRandomQuests(quests), [quests, user.questHistory?.length]);
+    const dailyChallenges = useMemo(() => getDailyRandomQuests(quests, user), [quests, user.questHistory?.length, user.streakDays]);
     const rewards = shopItems.filter(item => item.type === 'consumable').slice(0, 4);
     const currentMp = Math.max(0, 10 - (user.dailyCompletionsCount || 0));
     const isExhausted = currentMp <= 0;
@@ -97,7 +112,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
         if (isPendingPurchase) return;
         if (user.coins >= item.cost) {
             dispatch(purchaseItemAction(item)).unwrap().then(() => {
-                confetti({ particleCount: 50, spread: 50, origin: { y: 0.7 } });
+                fireConfetti({ particleCount: 50, spread: 50, origin: { y: 0.7 } });
             });
         }
     };
@@ -106,7 +121,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
         if (isQuestCompletedToday(Number(q.id)) || isPendingQuest) return;
         
         dispatch(completeQuestAction({ quest: q, multiplier: 1, isAutoComplete: true })).unwrap().then(() => {
-            confetti({ 
+            fireConfetti({ 
                 particleCount: 30, 
                 spread: 40, 
                 origin: { y: 0.5 }, 

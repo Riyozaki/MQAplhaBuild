@@ -151,15 +151,20 @@ const mapSheetToUser = (rawData: any): UserProfile => {
         }
     }
 
-    // Re-verify campaign completion on load (2/3 rule)
+    // Re-verify campaign completion on load (100% rule)
     const currentStoryDay = CAMPAIGN_DATA.find(d => d.day === campaignData.currentDay);
     if (currentStoryDay) {
-        const requiredIds = currentStoryDay.questIds;
+        const gradeGroup = gradeToGroup(Number(user.grade) || 7);
+        const requiredIds = Array.isArray(currentStoryDay.questIds) 
+            ? currentStoryDay.questIds 
+            : (currentStoryDay.questIds[gradeGroup] || currentStoryDay.questIds['grade67'] || []);
+            
         const completedIds = new Set(mappedHistory.map(h => h.questId));
-        const completedCount = requiredIds.filter(id => completedIds.has(id)).length;
-        const threshold = Math.ceil(requiredIds.length * (2/3)); // 2/3 Rule
+        // Count how many required quests are done (using loose string comparison)
+        const completedCount = requiredIds.filter(id => completedIds.has(String(id)) || completedIds.has(Number(id))).length;
         
-        if (completedCount >= threshold) {
+        // 100% Rule: All quests must be completed
+        if (completedCount >= requiredIds.length && requiredIds.length > 0) {
             campaignData.isDayComplete = true;
         }
     }
@@ -837,8 +842,9 @@ export const advanceCampaignDay = createAsyncThunk(
         const user = state.user.currentUser;
         if (!user || !user.email || !user.campaign.isDayComplete) return;
 
-        // Prevent advancing past the final day (loop exploit fix)
-        if (user.campaign.currentDay >= 14) {
+        // Prevent advancing past the final day
+        const maxDay = CAMPAIGN_DATA.length;
+        if (user.campaign.currentDay >= maxDay) {
             return;
         }
 
@@ -858,7 +864,7 @@ export const advanceCampaignDay = createAsyncThunk(
 
         const updates = {
             campaign: {
-                currentDay: nextDay > 14 ? 14 : nextDay, 
+                currentDay: nextDay > maxDay ? maxDay : nextDay, 
                 isDayComplete: false,
                 unlockedAllies: newAllies
             },
@@ -869,7 +875,7 @@ export const advanceCampaignDay = createAsyncThunk(
         // Sync Campaign
         await dispatch(updateCampaignAction({ 
             campaignId: 'main', 
-            currentDay: nextDay > 14 ? 14 : nextDay, 
+            currentDay: nextDay > maxDay ? maxDay : nextDay, 
             completedDays: [] 
         }));
 
@@ -1108,18 +1114,22 @@ const userSlice = createSlice({
               // Persist streaks to backend is handled in completeQuestAction thunk
           }
           
-          // Check campaign progression via quests (2/3 Rule)
+          // Check campaign progression via quests (100% Rule)
           if (state.currentUser.campaign) {
             const currentStoryDay = CAMPAIGN_DATA.find(d => d.day === state.currentUser!.campaign.currentDay);
             if (currentStoryDay) {
-                const requiredIds = currentStoryDay.questIds;
+                const gradeGroup = state.gradeGroup || 'grade67';
+                const requiredIds = Array.isArray(currentStoryDay.questIds) 
+                    ? currentStoryDay.questIds 
+                    : (currentStoryDay.questIds[gradeGroup] || currentStoryDay.questIds['grade67'] || []);
+
                 const completedIds = new Set(state.currentUser.questHistory.map(h => h.questId));
                 
                 // Count how many required quests are done
-                const completedCount = requiredIds.filter(id => completedIds.has(id)).length;
-                const threshold = Math.ceil(requiredIds.length * (2/3)); // 2/3 Rule
-
-                if (completedCount >= threshold && !state.currentUser.campaign.isDayComplete) {
+                const completedCount = requiredIds.filter(id => completedIds.has(String(id)) || completedIds.has(Number(id))).length;
+                
+                // 100% Rule
+                if (completedCount >= requiredIds.length && requiredIds.length > 0 && !state.currentUser.campaign.isDayComplete) {
                     state.currentUser.campaign.isDayComplete = true;
                 }
             }

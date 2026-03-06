@@ -4,7 +4,7 @@ import { RootState } from '../store';
 import { closeDailyRewardModal } from '../store/userSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Coins, Star, Flame, Check } from 'lucide-react';
-import confetti from 'canvas-confetti';
+import { fireConfetti } from '../utils/confetti';
 
 const DailyRewardModal: React.FC = () => {
     const dispatch = useDispatch();
@@ -19,7 +19,7 @@ const DailyRewardModal: React.FC = () => {
             };
 
             function fire(particleRatio: number, opts: any) {
-                confetti({
+                fireConfetti({
                     ...defaults,
                     ...opts,
                     particleCount: Math.floor(count * particleRatio)
