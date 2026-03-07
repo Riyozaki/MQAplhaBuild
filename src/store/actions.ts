@@ -13,6 +13,9 @@ interface StateWithUser {
     user: {
         currentUser: any; // Using any to avoid importing UserProfile which might be in types.ts (safe) but to be extra safe
         gradeGroup: string | null;
+        pendingActions: {
+            completeQuest: boolean;
+        };
     }
 }
 
@@ -135,7 +138,7 @@ export const fetchQuests = createAsyncThunk('quests/fetchQuests', async (_, { ge
     // Check completion
     if (user.questHistory) {
         const history = user.questHistory
-            .filter((h: any) => h.questId === q.id)
+            .filter((h: any) => String(h.questId) === String(q.id)) // FIX: String comparison
             .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
         if (history.length > 0) {
@@ -164,6 +167,29 @@ export const completeQuestAction = createAsyncThunk(
         if (!user || !user.email) return rejectWithValue("No user");
         
         const { quest, multiplier = 1, isAutoComplete = false } = payload;
+        
+        // ======= FIX: Duplicate completion guard =======
+        if (user.questHistory && Array.isArray(user.questHistory)) {
+            const questIdStr = String(quest.id);
+            const todayStart = new Date();
+            todayStart.setHours(0, 0, 0, 0);
+
+            const alreadyDone = user.questHistory.some((h: any) => {
+                if (String(h.questId) !== questIdStr) return false;
+                
+                if (quest.type === 'story') {
+                    return true; // Story quests: one-time only
+                }
+                // Daily/habit: once per day
+                return new Date(h.date) >= todayStart;
+            });
+
+            if (alreadyDone) {
+                console.warn(`[completeQuestAction] Duplicate blocked: quest ${quest.id} already completed`);
+                return rejectWithValue('Quest already completed today');
+            }
+        }
+        // ======= END FIX =======
         
         const dailyLimit = 15;
         if ((user.dailyCompletionsCount || 0) >= dailyLimit) {
@@ -250,6 +276,15 @@ export const completeQuestAction = createAsyncThunk(
             newXp: newXpTotal,
             newNextLevelXp: nextLevelXp
         };
+    },
+    {
+        condition: (_, { getState }) => {
+            const state = getState() as StateWithUser;
+            if (state.user.pendingActions?.completeQuest) {
+                return false;
+            }
+            return true;
+        }
     }
 );
 

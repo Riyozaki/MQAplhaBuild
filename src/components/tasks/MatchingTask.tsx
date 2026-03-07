@@ -6,11 +6,20 @@ interface Props {
     onAnswer: (taskId: number | string, isCorrect: boolean) => void;
 }
 
-// Fisher-Yates shuffle algorithm
-const shuffle = (array: string[]) => {
+// Fisher-Yates shuffle algorithm with optional seed
+const shuffle = (array: string[], seed?: number) => {
     const newArr = [...array];
+    
+    const random = () => {
+        if (seed !== undefined) {
+            const x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        }
+        return Math.random();
+    };
+
     for (let i = newArr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = Math.floor(random() * (i + 1));
         [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
     }
     return newArr;
@@ -20,9 +29,16 @@ const MatchingTask: React.FC<Props> = ({ task, onAnswer }) => {
     // Flatten pairs for UI
     const pairs = task.pairs || [];
     
-    // Initialize state with shuffled arrays using Fisher-Yates
-    const [leftItems] = useState(() => shuffle(pairs.map(p => p.left)));
-    const [rightItems] = useState(() => shuffle(pairs.map(p => p.right)));
+    // Initialize state with seeded shuffled arrays
+    const [leftItems] = useState(() => {
+        const seed = String(task.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return shuffle(pairs.map(p => p.left), seed);
+    });
+    
+    const [rightItems] = useState(() => {
+        const seed = String(task.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return shuffle(pairs.map(p => p.right), seed + 100); // Different seed for right side
+    });
     
     const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
     const [matched, setMatched] = useState<Set<string>>(new Set());

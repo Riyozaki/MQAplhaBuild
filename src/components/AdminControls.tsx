@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState, AppDispatch } from '../store';
+import { GradeGroup } from '../types';
 import { 
     addExperience, 
     adminSetDay, 
@@ -43,7 +44,12 @@ const AdminControls: React.FC = () => {
         const storyDay = CAMPAIGN_DATA.find(d => d.day === currentDay);
         
         if (storyDay) {
-            for (const questId of storyDay.questIds) {
+            const gradeGroup = (user.gradeGroup || 'grade67') as GradeGroup;
+            const ids = Array.isArray(storyDay.questIds) 
+                ? storyDay.questIds 
+                : (storyDay.questIds[gradeGroup] || storyDay.questIds['grade67'] || []);
+
+            for (const questId of ids) {
                 const quest = questsList.find(q => q.id === questId);
                 if (quest) {
                     await dispatch(markQuestCompleted(questId));

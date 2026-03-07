@@ -40,6 +40,17 @@ interface TaskResult {
 const MAX_HINTS = 4;
 const HINT_PENALTY = 0.25; // 25% per hint
 
+// === FIX: Universal completion check (handles both string and numeric IDs) ===
+const isQuestDoneToday = (questId: string | number, questHistory: any[]): boolean => {
+    if (!questHistory || !Array.isArray(questHistory)) return false;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const qIdStr = String(questId);
+    return questHistory.some((h: any) => 
+        String(h.questId) === qIdStr && new Date(h.date) >= todayStart
+    );
+};
+
 const getLocationModifier = (locId: string | undefined, category: string): { xp: number; coins: number; label?: string } => {
     switch(locId) {
         case 'forest': 
@@ -128,8 +139,15 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
       setHintedTasks(new Set());
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
+    } else if (quest && user?.questHistory) {
+      // FIX: On open, check if this quest was already completed today
+      // This prevents re-completion when the quest card incorrectly
+      // appears as "not done" (e.g. due to ID type mismatch bugs)
+      if (isQuestDoneToday(quest.id, user.questHistory)) {
+        setCompleted(true);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, quest?.id]);
 
   // ... (cache restoration logic remains)
 
@@ -289,6 +307,15 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
   const handleCompleteFlow = async () => {
       if (!quest || isCompleting) return;
 
+      // FIX: Double-completion guard
+      // Check LIVE state (not just local `completed` flag) to prevent
+      // earning rewards twice if the quest somehow appears as available
+      if (user?.questHistory && isQuestDoneToday(quest.id, user.questHistory)) {
+          toast.warning("Этот квест уже выполнен сегодня!");
+          setCompleted(true);
+          return;
+      }
+
       const allTasks = quest.tasks;
       const completedCount = Object.keys(taskResults).length;
       
@@ -314,8 +341,12 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
           return;
       }
 
+      // Recalculate modifiers here to ensure freshness
+      const currentLocMod = getLocationModifier(locationId, quest.category);
+      const currentEffectiveLocMod = Math.max(currentLocMod.xp, currentLocMod.coins);
+
       // Apply hint penalty and boost multiplier AND location modifier
-      finalMultiplier = finalMultiplier * multiplier * hintPenaltyMultiplier * effectiveLocMod;
+      finalMultiplier = finalMultiplier * multiplier * hintPenaltyMultiplier * currentEffectiveLocMod;
 
       try {
           await dispatch(completeQuestAction({ quest, multiplier: finalMultiplier })).unwrap();

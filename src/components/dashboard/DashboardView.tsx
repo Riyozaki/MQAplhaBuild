@@ -34,6 +34,21 @@ const getDailyRandomQuests = (allQuests: Quest[], user: any): Quest[] => {
     const currentMs = now.getTime();
     const cycleIndex = Math.floor((currentMs - anchor) / msPer24h);
     
+    // Cache key for today's selection
+    const cacheKey = `daily_quests_${cycleIndex}_${user.grade || 'default'}`;
+    
+    // Try to load from cache first
+    try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+            const parsedIds = JSON.parse(cached);
+            const cachedQuests = allQuests.filter(q => parsedIds.includes(String(q.id)));
+            if (cachedQuests.length === 6) return cachedQuests;
+        }
+    } catch (e) {
+        console.warn("Failed to load cached daily quests", e);
+    }
+
     const seededRandom = (seed: number) => {
         let t = seed += 0x6D2B79F5;
         t = Math.imul(t ^ (t >>> 15), t | 1);
@@ -61,12 +76,38 @@ const getDailyRandomQuests = (allQuests: Quest[], user: any): Quest[] => {
         // Prioritize preferred rarity
         if (weightA !== weightB) return weightB - weightA;
 
-        const rA = seededRandom(cycleIndex + Number(a.id));
-        const rB = seededRandom(cycleIndex + Number(b.id));
+        // Use string ID for stable seeding
+        const idA = String(a.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const idB = String(b.id).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+        const rA = seededRandom(cycleIndex + idA);
+        const rB = seededRandom(cycleIndex + idB);
         return rA - rB;
     });
 
-    return shuffled.slice(0, 6); // Return 6 quests
+    const selected = shuffled.slice(0, 6);
+    
+    // Cache the selection
+    try {
+        const selectedIds = selected.map(q => String(q.id));
+        localStorage.setItem(cacheKey, JSON.stringify(selectedIds));
+    } catch (e) {
+        console.warn("Failed to cache daily quests", e);
+    }
+
+    return selected; 
+};
+
+// Robust check for quest completion (handles string/number IDs)
+const isQuestDoneToday = (questId: string | number, questHistory: any[]): boolean => {
+    if (!questHistory || !Array.isArray(questHistory)) return false;
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const questIdStr = String(questId);
+    
+    return questHistory.some(h => 
+        String(h.questId) === questIdStr && new Date(h.date) >= todayStart
+    );
 };
 
 const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, onQuestSelect }) => {
@@ -80,7 +121,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
     
     // Derived state
     const habits = quests.filter(q => q.isHabit);
-    const dailyChallenges = useMemo(() => getDailyRandomQuests(quests, user), [quests, user.questHistory?.length, user.streakDays]);
+    
+    // Memoize daily challenges based ONLY on the quest pool and user grade/streak (not history length)
+    // We rely on the internal caching of getDailyRandomQuests to keep it stable
+    const dailyChallenges = useMemo(() => getDailyRandomQuests(quests, user), [quests, user.grade, user.streakDays]);
+    
     const rewards = shopItems.filter(item => item.type === 'consumable').slice(0, 4);
     const currentMp = Math.max(0, 10 - (user.dailyCompletionsCount || 0));
     const isExhausted = currentMp <= 0;
@@ -101,13 +146,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
         }, 1000);
         return () => clearInterval(interval);
     }, [nextRegenTime]);
-    
-    const isQuestCompletedToday = (questId: number) => {
-        if (!user.questHistory) return false;
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        return user.questHistory.some((h: any) => h.questId === questId && new Date(h.date) >= todayStart);
-    };
 
     const handleQuickBuy = (item: any) => {
         if (isPendingPurchase) return;
@@ -119,7 +157,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
     };
 
     const handleHabitComplete = (q: Quest) => {
-        if (isQuestCompletedToday(Number(q.id)) || isPendingQuest) return;
+        if (isQuestDoneToday(q.id, user.questHistory) || isPendingQuest) return;
         
         dispatch(completeQuestAction({ quest: q, multiplier: 1, isAutoComplete: true })).unwrap().then(() => {
             fireConfetti({ 
@@ -209,7 +247,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
                                 key={q.id} 
                                 q={q} 
                                 streak={user.habitStreaks?.[q.id] || 0}
-                                isDone={isQuestCompletedToday(Number(q.id))}
+                                isDone={isQuestDoneToday(q.id, user.questHistory)}
                                 isPendingQuest={isPendingQuest}
                                 isExhausted={isExhausted}
                                 onComplete={handleHabitComplete}
@@ -231,7 +269,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
                             <DailyChallengeCard 
                                 key={q.id} 
                                 q={q}
-                                isDone={isQuestCompletedToday(Number(q.id))}
+                                isDone={isQuestDoneToday(q.id, user.questHistory)}
                                 isExhausted={isExhausted}
                                 isPendingQuest={isPendingQuest}
                                 onSelect={onQuestSelect}

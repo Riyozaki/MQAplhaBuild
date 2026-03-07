@@ -75,7 +75,11 @@ const Login: React.FC = () => {
       }
       navigate('/');
     } catch (err: any) {
-      setError(err.message || 'Ошибка в заклинании входа');
+      if (err.message === 'OFFLINE_SAVED') {
+          setError('Нет связи с сервером. Магия интернета иссякла.');
+      } else {
+          setError(err.message || 'Ошибка в заклинании входа');
+      }
     } finally {
       setLoading(false);
     }

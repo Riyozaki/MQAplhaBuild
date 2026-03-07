@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from '@reduxjs/toolkit';
-import { UserProfile, SurveySubmission, ThemeColor, QuestHistoryItem, HeroClass } from '../types';
+import { UserProfile, SurveySubmission, ThemeColor, QuestHistoryItem, HeroClass, GradeGroup } from '../types';
 import { toast } from 'react-toastify';
 import { RootState } from './index';
 import { analytics } from '../services/analytics';
@@ -461,7 +461,11 @@ export const initAuth = createAsyncThunk('user/initAuth', async (_, { dispatch }
         
         cleanupStaleQuestCache();
         return { user: normalizedUser, reward };
-    } catch (e) {
+    } catch (e: any) {
+        if (e.message === 'OFFLINE_SAVED') {
+            console.log("Auth Init: Offline mode active. Request queued.");
+            return null;
+        }
         console.error("Auth Init Failed:", e);
         return null;
     }
@@ -1118,7 +1122,7 @@ const userSlice = createSlice({
           if (state.currentUser.campaign) {
             const currentStoryDay = CAMPAIGN_DATA.find(d => d.day === state.currentUser!.campaign.currentDay);
             if (currentStoryDay) {
-                const gradeGroup = state.gradeGroup || 'grade67';
+                const gradeGroup = (state.gradeGroup || 'grade67') as GradeGroup;
                 const requiredIds = Array.isArray(currentStoryDay.questIds) 
                     ? currentStoryDay.questIds 
                     : (currentStoryDay.questIds[gradeGroup] || currentStoryDay.questIds['grade67'] || []);
@@ -1126,7 +1130,7 @@ const userSlice = createSlice({
                 const completedIds = new Set(state.currentUser.questHistory.map(h => h.questId));
                 
                 // Count how many required quests are done
-                const completedCount = requiredIds.filter(id => completedIds.has(String(id)) || completedIds.has(Number(id))).length;
+                const completedCount = requiredIds.filter((id: string | number) => completedIds.has(String(id)) || completedIds.has(Number(id))).length;
                 
                 // 100% Rule
                 if (completedCount >= requiredIds.length && requiredIds.length > 0 && !state.currentUser.campaign.isDayComplete) {
