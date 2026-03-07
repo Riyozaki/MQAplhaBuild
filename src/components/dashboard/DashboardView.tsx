@@ -29,10 +29,10 @@ const itemVar = {
 // Helper for seeded random
 const getDailyRandomQuests = (allQuests: Quest[], user: any): Quest[] => {
     const now = new Date();
-    const msPer12h = 12 * 60 * 60 * 1000;
-    const anchor = new Date('2024-01-01T03:00:00.000Z').getTime(); 
+    const msPer24h = 24 * 60 * 60 * 1000; // 24 hour cycle
+    const anchor = new Date('2024-01-01T00:00:00.000Z').getTime(); 
     const currentMs = now.getTime();
-    const cycleIndex = Math.floor((currentMs - anchor) / msPer12h);
+    const cycleIndex = Math.floor((currentMs - anchor) / msPer24h);
     
     const seededRandom = (seed: number) => {
         let t = seed += 0x6D2B79F5;
@@ -41,8 +41,9 @@ const getDailyRandomQuests = (allQuests: Quest[], user: any): Quest[] => {
         return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
 
-    // Filter out habits, story quests, AND completed quests
-    const pool = allQuests.filter(q => !q.isHabit && q.type !== 'story' && !q.completed);
+    // Filter out habits and story quests. 
+    // IMPORTANT: Do NOT filter out completed quests here, or they will be replaced by new ones (infinite loop).
+    const pool = allQuests.filter(q => !q.isHabit && q.type !== 'story');
     
     // Adaptive Difficulty Logic
     let preferredRarity: string[] = ['Common', 'Rare', 'Epic', 'Legendary'];
@@ -65,7 +66,7 @@ const getDailyRandomQuests = (allQuests: Quest[], user: any): Quest[] => {
         return rA - rB;
     });
 
-    return shuffled.slice(0, 3);
+    return shuffled.slice(0, 6); // Return 6 quests
 };
 
 const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, onQuestSelect }) => {
@@ -223,7 +224,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ user, quests, shopItems, 
                     <h3 className="text-purple-400 font-bold uppercase tracking-widest mb-1 flex items-center gap-2">
                         <Award size={18} /> Испытания Дня
                     </h3>
-                    <p className="text-xs text-purple-300/60 mb-4">Обновление: 06:00 и 18:00 МСК. Бонус x1.5!</p>
+                    <p className="text-xs text-purple-300/60 mb-4">Обновление: 00:00 UTC. Бонус x1.5!</p>
                     
                     <div className="space-y-2">
                         {dailyChallenges.map(q => (

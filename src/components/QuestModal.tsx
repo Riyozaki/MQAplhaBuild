@@ -96,6 +96,20 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
   const [taskResults, setTaskResults] = useState<{ [key: string]: TaskResult }>({});
   const [completed, setCompleted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+
+  useEffect(() => {
+    const loadVoices = () => {
+      const vs = window.speechSynthesis.getVoices();
+      setVoices(vs);
+    };
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    return () => { 
+        window.speechSynthesis.onvoiceschanged = null; 
+        window.speechSynthesis.cancel();
+    };
+  }, []);
   
   // === HINT SYSTEM STATE ===
   const [hintsUsed, setHintsUsed] = useState(0);
@@ -112,8 +126,37 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
       setCompleted(false);
       setHintsUsed(0);
       setHintedTasks(new Set());
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
     }
   }, [isOpen]);
+
+  // ... (cache restoration logic remains)
+
+  const handleSpeak = () => {
+    if (!quest) return;
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    } else {
+      const text = `${quest.title}. ${quest.description}.`;
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      const ruVoice = voices.find(v => v.lang.includes('ru'));
+      if (ruVoice) utterance.voice = ruVoice;
+      utterance.lang = 'ru-RU';
+      
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = (e) => {
+          console.error("TTS Error:", e);
+          setIsSpeaking(false);
+          // Don't toast error to avoid spam if it's just a cancellation or missing voice
+      };
+      
+      window.speechSynthesis.speak(utterance);
+      setIsSpeaking(true);
+    }
+  };
 
   // Restore cached progress with TTL cleanup
   useEffect(() => {
@@ -163,20 +206,7 @@ const QuestModal: React.FC<QuestModalProps> = ({ quest, isOpen, onClose, multipl
     }
   }, [quest, isOpen]);
 
-  const handleSpeak = () => {
-    if (!quest) return;
-    if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-    } else {
-      const text = `${quest.title}. ${quest.description}.`;
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ru-RU';
-      utterance.onend = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-      setIsSpeaking(true);
-    }
-  };
+
 
   const formatTime = (ms: number) => {
       const minutes = Math.floor(ms / 60000);
